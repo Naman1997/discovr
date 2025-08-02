@@ -67,7 +67,7 @@ func init() {
 
 // Need to modify this further for extracting IP and MAC addresses
 // Probably will move this to another subcommand (passive)
-func arp() {
+func passive() {
 	defer util.Run()()
 	var handle *pcap.Handle
 	var err error
