@@ -23,12 +23,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/google/gopacket/dumpcommand"
-	"github.com/google/gopacket/examples/util"
-	"github.com/google/gopacket/pcap"
-	"log"
-	"time"
-
+	"github.com/Naman1997/discovr/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -46,7 +41,7 @@ discovr local active [--cidr CIDR (--ping|--arp)]
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("local called")
-		arp()
+		internal.PassiveScan(Interface)
 	},
 }
 
@@ -63,29 +58,4 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// localCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
-// Need to modify this further for extracting IP and MAC addresses
-// Probably will move this to another subcommand (passive)
-func passive() {
-	defer util.Run()()
-	var handle *pcap.Handle
-	var err error
-
-	inactive, err := pcap.NewInactiveHandle(Interface)
-	if err != nil {
-		log.Fatalf("Could not create handle for interface: %v", err)
-	}
-	defer inactive.CleanUp()
-	inactive.SetSnapLen(65536)
-	inactive.SetPromisc(true)
-	if err = inactive.SetTimeout(time.Second); err != nil {
-		log.Fatalf("Could not set timeout: %v", err)
-	}
-	if handle, err = inactive.Activate(); err != nil {
-		log.Fatal("PCAP Activate error:", err)
-	}
-	defer handle.Close()
-	
-	dumpcommand.Run(handle)
 }
