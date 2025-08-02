@@ -1,5 +1,4 @@
-The MIT License (MIT)
-
+/*
 Copyright © 2025 Naman Arora aroranaman17@gmail.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,3 +18,39 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+*/
+package cmd
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+)
+
+// awsCmd represents the aws command
+var awsCmd = &cobra.Command{
+	Use:   "aws",
+	Short: "Scan your aws environment",
+	Long: `Scan your aws environment for IT assets. For example:
+
+Usage:
+discovr aws --config FILENAME
+`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("aws called")
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(awsCmd)
+
+	// Here you will define your flags and configuration settings.
+
+	// Cobra supports Persistent Flags which will work for this command
+	// and all subcommands, e.g.:
+	// awsCmd.PersistentFlags().String("foo", "", "A help for foo")
+
+	// Cobra supports local flags which will only run when this command
+	// is called directly, e.g.:
+	// awsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
