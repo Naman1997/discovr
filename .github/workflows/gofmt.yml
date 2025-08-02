@@ -1,4 +1,4 @@
-name: Go Fmt and Commit
+name: Go Fmt & Commit
 
 on:
   push:
