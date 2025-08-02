@@ -1,0 +1,37 @@
+name: Go Fmt and Commit
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@4.2.2
+
+      - name: Setup Go
+        uses: actions/setup-go@v5.5.0
+        with:
+          go-version: '1.24'
+
+      - name: Run go fmt
+        run: go fmt ./...
+
+      - name: Check for changes
+        id: git_status
+        run: |
+          git diff --exit-code || echo "changes=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit changes if any
+        if: steps.git_status.outputs.changes == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: go fmt auto-format"
+          branch: ${{ github.head_ref || github.ref_name }} # Commit to the current branch
