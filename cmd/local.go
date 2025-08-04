@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"github.com/Naman1997/discovr/internal"
 
-
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +43,6 @@ discovr local active [--cidr CIDR (--ping|--arp)]
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("local called")
 
-		
 		internal.PassiveScan(Interface)
 	},
 }
