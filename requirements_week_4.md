@@ -1,5 +1,0 @@
-- 3 min video
-- Brochure
-- ppt
-- figma
-- zoom link
