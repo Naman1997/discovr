@@ -1,31 +1,17 @@
 package cmd
 
 import (
-	"fmt"
-	"github.com/Naman1997/discovr/internal"
 	"github.com/spf13/cobra"
 )
-
-var Interface string
 
 // localCmd represents the local command
 var localCmd = &cobra.Command{
 	Use:   "local",
-	Short: "Scan your local environment",
-	Long: `Scan your local environment for live IT assets. For example:
-
-Usage:
-discovr local passive [--interface INTERFACE]
-discovr local active [--cidr CIDR (--ping|--arp)]
-`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("local called")
-		internal.PassiveScan(Interface)
-	},
+	Short: "Scan your local environment with the specified method",
+	Long: `Scan your local environment for live IT assets. Select 'active' or 'passive' mode to initiate scan.`,
 }
 
 func init() {
-	localCmd.Flags().StringVarP(&Interface, "interface", "i", "wlp0s20f3", "Interface to read packets from")
 	rootCmd.AddCommand(localCmd)
 
 	// Here you will define your flags and configuration settings.

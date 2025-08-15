@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-
+	"runtime"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +22,14 @@ discovr aws --config FILENAME
 
 func init() {
 	rootCmd.AddCommand(awsCmd)
+
+	var config string
+	switch runtime.GOOS {
+	case "windows":
+		awsCmd.Flags().StringVarP(&config, "config", "c", "~/.aws/config", "Path to aws config file")
+	default:
+		awsCmd.Flags().StringVarP(&config, "config", "c", "\\%USERPROFILE%\\.aws\\config", "Path to aws config file")
+	}
 
 	// Here you will define your flags and configuration settings.
 

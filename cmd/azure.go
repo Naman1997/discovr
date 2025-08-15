@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-
+	"runtime"
 	"github.com/spf13/cobra"
 )
 
@@ -22,6 +22,14 @@ discovr azure --config FILENAME
 
 func init() {
 	rootCmd.AddCommand(azureCmd)
+
+	var config string
+	switch runtime.GOOS {
+	case "windows":
+		azureCmd.Flags().StringVarP(&config, "config", "c", "~/.azure/config", "Path to azure config file")
+	default:
+		azureCmd.Flags().StringVarP(&config, "config", "c", "\\%USERPROFILE%\\.azure\\config", "Path to azure config file")
+	}
 
 	// Here you will define your flags and configuration settings.
 
