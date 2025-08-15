@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"runtime"
 	"github.com/spf13/cobra"
+	"runtime"
 )
 
 // azureCmd represents the azure command

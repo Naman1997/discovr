@@ -10,8 +10,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "discovr",
 	Short: "Portable asset discovery tool for mapping your networks",
-	Long: `Find more information at: https://github.com/Naman1997/discovr`,
-
+	Long:  `Find more information at: https://github.com/Naman1997/discovr`,
 
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
