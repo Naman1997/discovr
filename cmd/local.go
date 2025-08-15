@@ -46,7 +46,7 @@ discovr local active [--cidr CIDR (--ping|--arp)]
 }
 
 func init() {
-	localCmd.Flags().StringVarP(&Interface, "interface", "i", "eth0", "Interface to read packets from")
+	localCmd.Flags().StringVarP(&Interface, "interface", "i", "wlp0s20f3", "Interface to read packets from")
 	rootCmd.AddCommand(localCmd)
 
 	// Here you will define your flags and configuration settings.
