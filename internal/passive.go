@@ -8,14 +8,14 @@ import (
 	"github.com/google/gopacket/pcap"
 	// "log"
 	// "strings"
-	"time"
-	"sync"
 	"net"
 	"slices"
+	"sync"
+	"time"
 )
 
 var (
-	wg      = &sync.WaitGroup{}
+	wg = &sync.WaitGroup{}
 )
 
 func PassiveScan(device string, scanSeconds int) {
@@ -37,7 +37,7 @@ func capturePackets(ctx context.Context, wg *sync.WaitGroup, networkInterface st
 
 	// Fetch local ip addresses
 	localIPs, err := getLocalIPs()
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 
@@ -49,10 +49,10 @@ func capturePackets(ctx context.Context, wg *sync.WaitGroup, networkInterface st
 	packets := packets(ctx, wg, networkInterface)
 	for {
 		select {
-			case packet := <-packets:
-				printPacketInfo(packet, localIPs)
-			case <-timeout:
-				return
+		case packet := <-packets:
+			printPacketInfo(packet, localIPs)
+		case <-timeout:
+			return
 		}
 	}
 }
@@ -106,17 +106,17 @@ func getLocalIPs() ([]string, error) {
 
 	for _, i := range ifaces {
 		addrs, err := i.Addrs()
-			if err != nil {
-				fmt.Printf("Error getting addresses for interface %s: %v\nContinuing...\n", i.Name, err)
-				continue
-			}
+		if err != nil {
+			fmt.Printf("Error getting addresses for interface %s: %v\nContinuing...\n", i.Name, err)
+			continue
+		}
 
-			// fmt.Printf("Interface: %s (Flags: %s, HardwareAddr: %s)\n", i.Name, i.Flags, i.HardwareAddr)
-			for _, addr := range addrs {
-				if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-					localIPs = append(localIPs, ipnet.IP.String())
-				}
+		// fmt.Printf("Interface: %s (Flags: %s, HardwareAddr: %s)\n", i.Name, i.Flags, i.HardwareAddr)
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				localIPs = append(localIPs, ipnet.IP.String())
 			}
+		}
 	}
 	return localIPs, nil
 }
