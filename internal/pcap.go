@@ -16,38 +16,33 @@ var (
 	wg      = &sync.WaitGroup{}
 )
 
-func PassiveScan(device string, scanTime time.Duration) {
-	log.Println("Started pcap open:", device)
-	defer log.Println("Finished")
-
+func PassiveScan(device string, scanSeconds int) {
+	// Initialize context and define scanDuration
+	var scanDuration time.Duration = time.Duration(scanSeconds) * time.Second
 	ctx, cancel := context.WithCancel(context.Background())
-	go capturePackets(ctx, wg, device, scanTime)
+	go capturePackets(ctx, wg, device, scanDuration)
 
-	time.Sleep(scanTime)
-	log.Println("Attempting to close the pcap handle and expecting the packets channel to be closed soon.")
+	// Wait for the scanDuration and wg to finish
+	time.Sleep(scanDuration)
 	cancel()
-
 	wg.Wait()
 }
 
-func capturePackets(ctx context.Context, wg *sync.WaitGroup, networkInterface string, scanTime time.Duration) {
+func capturePackets(ctx context.Context, wg *sync.WaitGroup, networkInterface string, scanDuration time.Duration) {
 	wg.Add(1)
 	defer wg.Done()
-	defer log.Println("The gopacket.PacketSources.Packets() channel was closed.")
 
 	// Creating a ticker to manually stop the for loop
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	timeout := time.After(scanTime)
+	timeout := time.After(scanDuration)
 
 	packets := packets(ctx, wg, networkInterface)
-
 	for {
 		select {
 			case packet := <-packets:
 				printPacketInfo(packet)
 			case <-timeout:
-				fmt.Println("Timeout reached, breaking loop.")
 				return
 		}
 	}
@@ -62,9 +57,7 @@ func packets(ctx context.Context, wg *sync.WaitGroup, networkInterface string) c
 		go func() {
 			defer wg.Done()
 			<-ctx.Done()
-			log.Println("Closing the pcap handle.")
 			handle.Close()
-			log.Println("Closed the pcap handle.")
 		}()
 		return ps.Packets()
 	}
@@ -72,7 +65,7 @@ func packets(ctx context.Context, wg *sync.WaitGroup, networkInterface string) c
 
 /* 
 Source: https://github.com/tgogos/gopacket_pcap/blob/master/decode/decode.go
-Need to modify the decode example to extract source addresses of packets
+TODO: Need to modify the decode example to extract source addresses of packets
 */
 func printPacketInfo(packet gopacket.Packet) {
 	// Let's see if the packet is an ethernet packet
