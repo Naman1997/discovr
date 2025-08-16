@@ -6,8 +6,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	// "log"
-	// "strings"
 	"net"
 	"slices"
 	"sync"
