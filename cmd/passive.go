@@ -23,5 +23,5 @@ var passiveCmd = &cobra.Command{
 func init() {
 	localCmd.AddCommand(passiveCmd)
 
-	passiveCmd.Flags().StringVarP(&Interface, "interface", "i", "eth0", "Interface to read packets from")
+	passiveCmd.Flags().StringVarP(&Interface, "interface", "i", "any", "Interface to read packets from (default: all interfaces)")
 }
