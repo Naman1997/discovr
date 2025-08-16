@@ -72,6 +72,7 @@ func packets(ctx context.Context, wg *sync.WaitGroup, networkInterface string) c
 	}
 }
 
+// TODO: Wait for SRUM-8 and implement the method to export this information to a csv file
 func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	ipLayer := packet.Layer(layers.LayerTypeIPv4)
