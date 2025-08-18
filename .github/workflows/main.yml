@@ -33,7 +33,7 @@ jobs:
           docker cp $CONTAINER_NAME:/usr/bin/nmap assets/nmap
           docker rm -v $CONTAINER_NAME
           wget https://nmap.org/dist/$NMAP_WIN_ZIP -O assets/$NMAP_WIN_ZIP
-          go build -v
+          go build -ldflags="-X 'github.com/Naman1997/discovr/internal.NmapVersion=$NMAP_VERSION'" -v
 
     - name: Test
       run: go test -v ./...

@@ -8,7 +8,7 @@ all: build
 
 build: get_nmap_binary get_nmap_win_zip
 	@rm -f discovr
-	@go build -v
+	@go build -ldflags="-X 'github.com/Naman1997/discovr/internal.NmapVersion=$(NMAP_VERSION)'" -v
 
 get_nmap_binary:
 ifeq (,$(wildcard assets/nmap))

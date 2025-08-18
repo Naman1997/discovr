@@ -3,6 +3,7 @@ module github.com/Naman1997/discovr
 go 1.24.4
 
 require (
+	github.com/Ullaakut/nmap/v3 v3.0.6
 	github.com/google/gopacket v1.1.19
 	github.com/spf13/cobra v1.9.1
 )
