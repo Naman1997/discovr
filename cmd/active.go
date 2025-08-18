@@ -7,7 +7,7 @@ import (
 
 var (
 	Target string
-	Ports string
+	Ports  string
 )
 
 var activeCmd = &cobra.Command{
@@ -21,7 +21,7 @@ var activeCmd = &cobra.Command{
 
 func init() {
 	localCmd.AddCommand(activeCmd)
-	
+
 	activeCmd.Flags().StringVarP(&Target, "target", "t", "127.0.0.1", "Target CIDR range or IP address to scan")
 	activeCmd.Flags().StringVarP(&Ports, "ports", "p", "", "Ports to scan on target systems (defaults to top 1000 most common ports)")
 }

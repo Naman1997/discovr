@@ -2,19 +2,19 @@ package internal
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"github.com/Naman1997/discovr/assets"
-	"github.com/joho/godotenv"
 	"github.com/Ullaakut/nmap/v3"
 	osfamily "github.com/Ullaakut/nmap/v3/pkg/osfamilies"
+	"github.com/joho/godotenv"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
-	"log"
-	"context"
 	"slices"
+	"strings"
 )
 
 func ActiveScan(targets string, ports string) {
@@ -43,7 +43,7 @@ func ActiveScan(targets string, ports string) {
 		matchedHosts := []string{}
 
 		for _, match := range host.OS.Matches {
-			if(!slices.Contains(matchedHosts, host.Addresses[0].Addr)){
+			if !slices.Contains(matchedHosts, host.Addresses[0].Addr) {
 				for _, class := range match.Classes {
 					switch class.OSFamily() {
 					case osfamily.Linux:
@@ -68,8 +68,8 @@ func ActiveScan(targets string, ports string) {
 	_ = os.RemoveAll(nmapDir)
 }
 
-func createScanner(targets string, ports string, nmapPath string) (*nmap.Scanner, error){
-	if(ports == ""){
+func createScanner(targets string, ports string, nmapPath string) (*nmap.Scanner, error) {
+	if ports == "" {
 		return nmap.NewScanner(
 			context.Background(),
 			nmap.WithTargets(targets),
@@ -78,7 +78,7 @@ func createScanner(targets string, ports string, nmapPath string) (*nmap.Scanner
 			nmap.WithMostCommonPorts(1000),
 			nmap.WithServiceInfo(),
 		)
-		
+
 	} else {
 		return nmap.NewScanner(
 			context.Background(),
