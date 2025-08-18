@@ -1,0 +1,3 @@
+FROM fedora:43
+ARG FEDORA_PACKAGE
+RUN dnf install ${FEDORA_PACKAGE} -y
