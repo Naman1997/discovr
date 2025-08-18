@@ -7,7 +7,7 @@ NMAP_WIN_ZIP := nmap-$(NMAP_VERSION)-win32.zip
 all: build
 
 build: get_nmap_binary get_nmap_win_zip
-	@rm discovr
+	@rm -f discovr
 	@go build -v
 
 get_nmap_binary:
@@ -23,3 +23,6 @@ get_nmap_win_zip:
 ifeq (,$(wildcard assets/$(NMAP_WIN_ZIP)))
 	@wget https://nmap.org/dist/$(NMAP_WIN_ZIP) -O assets/$(NMAP_WIN_ZIP)
 endif
+
+clean:
+	@rm -f discovr assets/$(NMAP_WIN_ZIP) assets/nmap
