@@ -23,16 +23,16 @@ jobs:
 
     - name: Build
       run: |
+          export $(cat .env | xargs)
           export IMAGE=fedora_nmap
           export CONTAINER_NAME=discovr_nmap
-          export NMAP_WIN_ZIP=nmap-$(NMAP_VERSION)-win32.zip
-          export $(cat .env | xargs)
-          docker buildx build -f nmap.Dockerfile . --tag $(IMAGE) --build-arg FEDORA_PACKAGE
-          docker create --name $(CONTAINER_NAME) $(IMAGE)
-          docker wait $(CONTAINER_NAME)
-          docker cp $(CONTAINER_NAME):/usr/bin/nmap assets/nmap
-          docker rm -v $(CONTAINER_NAME)
-          wget https://nmap.org/dist/$(NMAP_WIN_ZIP) -O assets/$(NMAP_WIN_ZIP)
+          export NMAP_WIN_ZIP=nmap-$NMAP_VERSION-win32.zip
+          docker buildx build -f nmap.Dockerfile . --tag $IMAGE --build-arg FEDORA_PACKAGE
+          docker create --name $CONTAINER_NAME $IMAGE
+          docker wait $CONTAINER_NAME
+          docker cp $CONTAINER_NAME:/usr/bin/nmap assets/nmap
+          docker rm -v $CONTAINER_NAME
+          wget https://nmap.org/dist/$NMAP_WIN_ZIP -O assets/$NMAP_WIN_ZIP
           go build -v
 
     - name: Test
