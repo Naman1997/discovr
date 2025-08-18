@@ -21,11 +21,8 @@ jobs:
     - name: Install libpcap-dev
       run: sudo apt-get install -y libpcap-dev make
 
-    - name: Get nmap dependencies
-      run: make get_nmap_binary && make get_nmap_win_zip
-
     - name: Build
-      run: go build -v
+      run: make all
 
     - name: Test
       run: go test -v ./...
