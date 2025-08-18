@@ -7,7 +7,6 @@ import (
 	"github.com/Naman1997/discovr/assets"
 	"github.com/Ullaakut/nmap/v3"
 	osfamily "github.com/Ullaakut/nmap/v3/pkg/osfamilies"
-	"github.com/joho/godotenv"
 	"io"
 	"log"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"slices"
 	"strings"
 )
+
+var NmapVersion string
 
 func ActiveScan(targets string, ports string) {
 
@@ -93,11 +94,10 @@ func createScanner(targets string, ports string, nmapPath string) (*nmap.Scanner
 }
 
 func extractNmap() (string, string) {
-	nmapVersion := getEnvVariable("NMAP_VERSION")
 	nmapBinaryName := "nmap"
 	nmapExeName := nmapBinaryName + ".exe"
-	nmapVersionedZip := "nmap-" + nmapVersion + "-win32.zip"
-	extractedFolderName := nmapBinaryName + "-" + nmapVersion
+	nmapVersionedZip := "nmap-" + NmapVersion + "-win32.zip"
+	extractedFolderName := nmapBinaryName + "-" + NmapVersion
 
 	nmapWinZipFile, _ := assets.Assets.ReadFile(nmapVersionedZip)
 	tmpDir, _ := os.MkdirTemp("", "discovr-embedded-bin-*")
@@ -160,17 +160,4 @@ func unzip(destination string, zipFilePath string) {
 		dstFile.Close()
 		fileInArchive.Close()
 	}
-}
-
-func getEnvVariable(key string) string {
-
-	// load .env file
-	err := godotenv.Load(".env")
-
-	// TODO: Fix this handling
-	if err != nil {
-		fmt.Printf("Error loading .env file")
-	}
-
-	return os.Getenv(key)
 }
