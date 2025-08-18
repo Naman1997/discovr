@@ -5,45 +5,141 @@ import (
 	"fmt"
 	"github.com/Naman1997/discovr/assets"
 	"github.com/joho/godotenv"
+	"github.com/Ullaakut/nmap/v3"
+	osfamily "github.com/Ullaakut/nmap/v3/pkg/osfamilies"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"log"
+	"context"
+	"slices"
 )
 
-func ActiveScan() {
+func ActiveScan(targets string, ports string) {
 
-	nmapPath := extractNmap()
-	fmt.Printf(nmapPath)
+	nmapDir, nmapPath := extractNmap()
+
+	// Keeping this around for debugging
+	// fmt.Printf(nmapPath)
+
+	scanner, err := createScanner(targets, ports, nmapPath)
+
+	result, warnings, err := scanner.Run()
+	if len(*warnings) > 0 {
+		log.Printf("run finished with warnings: %s\n", *warnings) // Warnings are non-critical errors from nmap.
+	}
+	if err != nil {
+		log.Fatalf("nmap scan failed: %v", err)
+	}
+
+	// Use the results to get the OS and ports open
+	for _, host := range result.Hosts {
+		if len(host.Ports) == 0 || len(host.Addresses) == 0 {
+			continue
+		}
+
+		matchedHosts := []string{}
+
+		for _, match := range host.OS.Matches {
+			if(!slices.Contains(matchedHosts, host.Addresses[0].Addr)){
+				for _, class := range match.Classes {
+					switch class.OSFamily() {
+					case osfamily.Linux:
+						fmt.Printf("Discovered host running Linux: %q\n", host.Addresses[0])
+						matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
+					case osfamily.Windows:
+						fmt.Printf("Discovered host running Windows: %q\n", host.Addresses[0])
+						matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
+					}
+				}
+			}
+		}
+
+		for _, port := range host.Ports {
+			fmt.Printf("\tPort %d/%s %s %s %s\n", port.ID, port.Protocol, port.State, port.Service.Name, port.Service.Product)
+		}
+	}
+
+	fmt.Printf("Nmap done: %d hosts up scanned in %.2f seconds\n", len(result.Hosts), result.Stats.Finished.Elapsed)
+
+	// Remove the dir containing nmap
+	_ = os.RemoveAll(nmapDir)
 }
 
-func extractNmap() string {
+func createScanner(targets string, ports string, nmapPath string) (*nmap.Scanner, error){
+	if(ports == ""){
+		return nmap.NewScanner(
+			context.Background(),
+			nmap.WithTargets(targets),
+			nmap.WithOSDetection(), // TODO: Needs to run with sudo, need to make this a flag
+			nmap.WithBinaryPath(nmapPath),
+			nmap.WithMostCommonPorts(1000),
+			nmap.WithServiceInfo(),
+		)
+		
+	} else {
+		return nmap.NewScanner(
+			context.Background(),
+			nmap.WithTargets(targets),
+			nmap.WithOSDetection(), // TODO: Needs to run with sudo, need to make this a flag
+			nmap.WithBinaryPath(nmapPath),
+			nmap.WithPorts(ports),
+			nmap.WithServiceInfo(),
+		)
+	}
+}
+
+func countByOS(result *nmap.Run) {
+	var (
+		linux, windows int
+	)
+
+	// Count the number of each OS for all hosts.
+	for _, host := range result.Hosts {
+		for _, match := range host.OS.Matches {
+			for _, class := range match.Classes {
+				switch class.OSFamily() {
+				case osfamily.Linux:
+					linux++
+				case osfamily.Windows:
+					windows++
+				}
+			}
+
+		}
+	}
+
+	fmt.Printf("Discovered %d linux hosts and %d windows hosts out of %d total up hosts.\n", linux, windows, result.Stats.Hosts.Up)
+}
+
+func extractNmap() (string, string) {
 	nmapVersion := getEnvVariable("NMAP_VERSION")
 	nmapBinaryName := "nmap"
 	nmapExeName := nmapBinaryName + ".exe"
 	nmapVersionedZip := "nmap-" + nmapVersion + "-win32.zip"
 	extractedFolderName := nmapBinaryName + "-" + nmapVersion
 
-	bin2, _ := assets.Assets.ReadFile(nmapVersionedZip)
+	nmapWinZipFile, _ := assets.Assets.ReadFile(nmapVersionedZip)
 	tmpDir, _ := os.MkdirTemp("", "discovr-embedded-bin-*")
 	tmpPath := filepath.Join(tmpDir, nmapVersionedZip)
-	_ = os.WriteFile(tmpPath, bin2, 0644)
+	_ = os.WriteFile(tmpPath, nmapWinZipFile, 0644)
 
 	// Unzip and delete zip file
 	unzip(tmpDir, tmpPath)
 	_ = os.Remove(tmpDir + string(os.PathSeparator) + nmapVersionedZip)
 
-	// If linux, copy the linux binary to the extracted folder
-	if runtime.GOOS == "linux" {
+	// If linux or macos, copy the nmap binary to the extracted folder
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
 		nmapLinuxBinary, _ := assets.Assets.ReadFile(nmapBinaryName)
 		binPath := tmpDir + string(os.PathSeparator) + extractedFolderName + string(os.PathSeparator) + nmapBinaryName
 		tmpPath = filepath.Join(binPath)
 		_ = os.WriteFile(tmpPath, nmapLinuxBinary, 0755)
-		return binPath
+		return tmpDir, binPath
 	}
 
-	return tmpDir + string(os.PathSeparator) + extractedFolderName + string(os.PathSeparator) + nmapExeName
+	return tmpDir, tmpDir + string(os.PathSeparator) + extractedFolderName + string(os.PathSeparator) + nmapExeName
 }
 
 func unzip(destination string, zipFilePath string) {
