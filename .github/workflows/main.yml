@@ -19,7 +19,10 @@ jobs:
         go-version: 1.24
 
     - name: Install libpcap-dev
-      run: sudo apt-get install -y libpcap-dev
+      run: sudo apt-get install -y libpcap-dev make
+
+    - name: Get nmap dependencies
+      run: make get_nmap_binary && make get_nmap_win_zip
 
     - name: Build
       run: go build -v
