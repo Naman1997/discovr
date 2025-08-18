@@ -34,6 +34,7 @@ func ActiveScan(targets string, ports string) {
 		log.Fatalf("nmap scan failed: %v", err)
 	}
 
+	// TODO: Wait for SRUM-8 and implement the method to export this information to a csv file
 	// Use the results to get the OS and ports open
 	for _, host := range result.Hosts {
 		if len(host.Ports) == 0 || len(host.Addresses) == 0 {
