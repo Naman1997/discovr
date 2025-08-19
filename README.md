@@ -41,8 +41,16 @@ git clone https://github.com/Naman1997/discovr.git
 # Go into the directory
 cd discovr
 
-# Get the nmap binary and windows zip
-make get_nmap_binary
+# Login to github
+gh auth login
+
+# Clone the repo
+git clone https://github.com/Naman1997/discovr.git
+
+# Go into the directory
+cd discovr
+
+# Get the nmap windows zip
 make get_nmap_win_zip
 
 # Open Windows Command Prompt(cmd) and navigate to the same directory
