@@ -31,6 +31,7 @@ func ActiveScan(targets string, ports string) {
 
 	// Keeping this around for debugging
 	// fmt.Printf(nmapPath)
+	// fmt.Println("")
 
 	scanner, err := createScanner(targets, ports, nmapPath)
 

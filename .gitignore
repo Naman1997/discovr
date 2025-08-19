@@ -31,3 +31,4 @@ go.work.sum
 
 # Nmap assets
 assets/nmap*
+assets/npcap*
