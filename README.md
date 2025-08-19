@@ -41,15 +41,6 @@ git clone https://github.com/Naman1997/discovr.git
 # Go into the directory
 cd discovr
 
-# Login to github
-gh auth login
-
-# Clone the repo
-git clone https://github.com/Naman1997/discovr.git
-
-# Go into the directory
-cd discovr
-
 # Get the nmap windows zip
 make get_nmap_win_zip
 
@@ -79,4 +70,14 @@ getmac /fo csv /v
 
 # Run a passive scan on an interface (the default option does not work atm)
 .\discovr.exe local passive -i \Device\NPF_{ED16A895-687F-4D8C-B13B-930295C92D21}
+```
+
+##### Running active scans in Windows
+
+```
+# Run a scan on localhost for top 1000 ports
+.\discovr.exe local active
+
+# Run a scan on a target ip with specified ports
+.\discovr.exe local active -t 10.10.10.10 -p 80,443
 ```
