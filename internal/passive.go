@@ -6,14 +6,14 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"golang.org/x/sync/semaphore"
 	"net"
 	"slices"
 	"time"
-	"golang.org/x/sync/semaphore"
 )
 
 var (
-	sem = semaphore.NewWeighted(2)
+	sem              = semaphore.NewWeighted(2)
 	discoveredAssets = []string{}
 )
 
@@ -26,13 +26,13 @@ func PassiveScan(device string, scanSeconds int) {
 
 	// Wait for the scanDuration and wg to finish
 	time.Sleep(scanDuration)
-    defer cancel()
+	defer cancel()
 
-    err := sem.Acquire(ctx, 2)
-    if err != nil {
-        fmt.Println("%v. Exiting!", err)
-        return
-    }
+	err := sem.Acquire(ctx, 2)
+	if err != nil {
+		fmt.Println("%v. Exiting!", err)
+		return
+	}
 }
 
 func capturePackets(ctx context.Context, sem *semaphore.Weighted, networkInterface string, scanDuration time.Duration) {
