@@ -12,7 +12,7 @@ build: get_nmap_binary get_nmap_win_zip
 
 get_nmap_binary:
 ifeq (,$(wildcard assets/nmap))
-	@export $(cat .env | xargs) && docker buildx build -f nmap.Dockerfile . --tag $(IMAGE) --build-arg FEDORA_PACKAGE
+	@docker buildx build -f nmap.Dockerfile . --tag $(IMAGE) --build-arg FEDORA_PACKAGE=$(FEDORA_PACKAGE)
 	@docker create --name $(CONTAINER_NAME) $(IMAGE)
 	@docker wait $(CONTAINER_NAME)
 	@docker cp $(CONTAINER_NAME):/usr/bin/nmap assets/nmap
