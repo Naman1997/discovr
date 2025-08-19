@@ -4,8 +4,7 @@
 
 Automated asset discovery
 
-
-# Build instructions
+# Development
 
 ### Linux
 
@@ -38,5 +37,8 @@ cd C:\Users\loki\Documents\Github\discovr\
 for /F %A in (.env) do SET %A
 
 # Build (from the same command prompt)
-sudo go build -ldflags="-X 'github.com/Naman1997/discovr/internal.NmapVersion=7.92'" main.go local passive
+go build -ldflags="-X 'github.com/Naman1997/discovr/internal.NmapVersion=%NMAP_VERSION%'"
+
+# Run the binary
+.\discovr.exe -h
 ```

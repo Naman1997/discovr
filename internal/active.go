@@ -20,6 +20,13 @@ var NmapVersion string
 
 func ActiveScan(targets string, ports string) {
 
+	// TODO: Use the system nmap if it is present
+	// import "os/exec"
+	// nmapPath, err = exec.LookPath("nmap")
+	// if err != nil {
+	// 	// extract nmap
+	// }
+
 	nmapDir, nmapPath := extractNmap()
 
 	// Keeping this around for debugging

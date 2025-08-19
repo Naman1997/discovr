@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	wg = &sync.WaitGroup{}
+	wg               = &sync.WaitGroup{}
+	discoveredAssets = []string{}
 )
 
 func PassiveScan(device string, scanSeconds int) {
@@ -76,8 +77,9 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 	ipLayer := packet.Layer(layers.LayerTypeIPv4)
 	if ipLayer != nil {
 		ip, _ := ipLayer.(*layers.IPv4)
-		if slices.Contains(localIPs, ip.DstIP.String()) {
-			fmt.Printf("From %s to %s\n", ip.SrcIP, ip.DstIP)
+		if slices.Contains(localIPs, ip.DstIP.String()) && !slices.Contains(discoveredAssets, ip.SrcIP.String()) {
+			discoveredAssets = append(discoveredAssets, ip.SrcIP.String())
+			fmt.Printf("Discovered new asset: %s\n", ip.SrcIP)
 			fmt.Println("Protocol: ", ip.Protocol)
 			fmt.Println()
 
