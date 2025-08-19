@@ -30,7 +30,7 @@ func PassiveScan(device string, scanSeconds int) {
 
 	err := sem.Acquire(ctx, 2)
 	if err != nil {
-		fmt.Println("%v. Exiting!", err)
+		fmt.Printf("%v. Exiting!", err)
 		return
 	}
 }
