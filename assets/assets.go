@@ -2,5 +2,5 @@ package assets
 
 import "embed"
 
-//go:embed nmap*
+//go:embed n*
 var Assets embed.FS
