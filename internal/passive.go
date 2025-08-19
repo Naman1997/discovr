@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	wg = &sync.WaitGroup{}
+	wg               = &sync.WaitGroup{}
 	discoveredAssets = []string{}
 )
 
