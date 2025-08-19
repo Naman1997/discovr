@@ -6,14 +6,14 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"golang.org/x/sync/semaphore"
 	"net"
 	"slices"
-	"sync"
 	"time"
 )
 
 var (
-	wg               = &sync.WaitGroup{}
+	sem              = semaphore.NewWeighted(2)
 	discoveredAssets = []string{}
 )
 
@@ -21,18 +21,26 @@ func PassiveScan(device string, scanSeconds int) {
 
 	// Initialize context and define scanDuration
 	var scanDuration time.Duration = time.Duration(scanSeconds) * time.Second
-	ctx, cancel := context.WithCancel(context.Background())
-	go capturePackets(ctx, wg, device, scanDuration)
+	ctx, cancel := context.WithTimeout(context.Background(), scanDuration)
+	go capturePackets(ctx, sem, device, scanDuration)
 
 	// Wait for the scanDuration and wg to finish
 	time.Sleep(scanDuration)
-	cancel()
-	wg.Wait()
+	defer cancel()
+
+	err := sem.Acquire(ctx, 2)
+	if err != nil {
+		fmt.Println("%v. Exiting!", err)
+		return
+	}
 }
 
-func capturePackets(ctx context.Context, wg *sync.WaitGroup, networkInterface string, scanDuration time.Duration) {
-	wg.Add(1)
-	defer wg.Done()
+func capturePackets(ctx context.Context, sem *semaphore.Weighted, networkInterface string, scanDuration time.Duration) {
+	err := sem.Acquire(context.Background(), 1)
+	if err != nil {
+		panic(err)
+	}
+	defer sem.Release(1)
 
 	// Fetch local ip addresses
 	localIPs, err := getLocalIPs()
@@ -45,7 +53,7 @@ func capturePackets(ctx context.Context, wg *sync.WaitGroup, networkInterface st
 	defer ticker.Stop()
 	timeout := time.After(scanDuration)
 
-	packets := packets(ctx, wg, networkInterface)
+	packets := packets(ctx, sem, networkInterface)
 	for {
 		select {
 		case packet := <-packets:
@@ -56,14 +64,17 @@ func capturePackets(ctx context.Context, wg *sync.WaitGroup, networkInterface st
 	}
 }
 
-func packets(ctx context.Context, wg *sync.WaitGroup, networkInterface string) chan gopacket.Packet {
+func packets(ctx context.Context, sem *semaphore.Weighted, networkInterface string) chan gopacket.Packet {
 	if handle, err := pcap.OpenLive(networkInterface, 1024, false, pcap.BlockForever); err != nil {
 		panic(err)
 	} else {
 		ps := gopacket.NewPacketSource(handle, handle.LinkType())
-		wg.Add(1)
+		err := sem.Acquire(context.Background(), 1)
+		if err != nil {
+			panic(err)
+		}
+		defer sem.Release(1)
 		go func() {
-			defer wg.Done()
 			<-ctx.Done()
 			handle.Close()
 		}()
