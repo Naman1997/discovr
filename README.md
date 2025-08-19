@@ -13,6 +13,25 @@ make
 ./discovr -h
 ```
 
+##### Running passive scans in Linux
+
+```
+# Run a passive scan all interfaces
+./discovr local passive
+
+# Run a passive scan on the specified interface for a specified amount of time
+./discovr local passive -i eth0 -d 20
+```
+
+##### Running active scans in Linux
+
+```
+# Run a scan on localhost for top 1000 ports
+./discovr local active
+
+# Run a scan on a target ip with specified ports
+./discovr local active -t 10.10.10.10 -p 80,443
+```
 
 ### Windows
 
