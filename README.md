@@ -13,6 +13,25 @@ make
 ./discovr -h
 ```
 
+##### Running passive scans in Linux
+
+```
+# Run a passive scan all interfaces
+./discovr local passive
+
+# Run a passive scan on the specified interface for a specified amount of time
+./discovr local passive -i eth0 -d 20
+```
+
+##### Running active scans in Linux
+
+```
+# Run a scan on localhost for top 1000 ports
+./discovr local active
+
+# Run a scan on a target ip with specified ports
+./discovr local active -t 10.10.10.10 -p 80,443
+```
 
 ### Windows
 
@@ -31,15 +50,6 @@ sudo apt update -y
 
 # Install dependencies
 sudo apt install git gh make -y
-
-# Login to github
-gh auth login
-
-# Clone the repo
-git clone https://github.com/Naman1997/discovr.git
-
-# Go into the directory
-cd discovr
 
 # Login to github
 gh auth login
@@ -79,4 +89,14 @@ getmac /fo csv /v
 
 # Run a passive scan on an interface (the default option does not work atm)
 .\discovr.exe local passive -i \Device\NPF_{ED16A895-687F-4D8C-B13B-930295C92D21}
+```
+
+##### Running active scans in Windows
+
+```
+# Run a scan on localhost for top 1000 ports
+.\discovr.exe local active
+
+# Run a scan on a target ip with specified ports
+.\discovr.exe local active -t 10.10.10.10 -p 80,443
 ```
