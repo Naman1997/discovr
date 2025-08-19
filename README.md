@@ -4,7 +4,6 @@
 
 Automated asset discovery
 
-
 # Development
 
 ### Linux
