@@ -4,9 +4,6 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
-	"github.com/Naman1997/discovr/assets"
-	"github.com/Ullaakut/nmap/v3"
-	osfamily "github.com/Ullaakut/nmap/v3/pkg/osfamilies"
 	"io"
 	"log"
 	"os"
@@ -14,6 +11,10 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+
+	"github.com/Naman1997/discovr/assets"
+	"github.com/Ullaakut/nmap/v3"
+	osfamily "github.com/Ullaakut/nmap/v3/pkg/osfamilies"
 )
 
 var NmapVersion string
@@ -69,6 +70,10 @@ func ActiveScan(targets string, ports string) {
 
 		for _, port := range host.Ports {
 			fmt.Printf("\tPort %d/%s %s %s %s\n", port.ID, port.Protocol, port.State, port.Service.Name, port.Service.Product)
+			path := "output_passive.csv"
+			header := []string{"Asset_IP", "Protocol", "Sourece_MAC", "Destination_MAC", "Ethernet_Type"}
+			row := [][]string{{port.ID}}
+			Storedata(path, header, row)
 		}
 	}
 
