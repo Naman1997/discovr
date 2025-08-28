@@ -4,9 +4,6 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
-	"github.com/Naman1997/discovr/assets"
-	"github.com/Ullaakut/nmap/v3"
-	osfamily "github.com/Ullaakut/nmap/v3/pkg/osfamilies"
 	"io"
 	"log"
 	"os"
@@ -14,6 +11,10 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+
+	"github.com/Naman1997/discovr/assets"
+	"github.com/Ullaakut/nmap/v3"
+	osfamily "github.com/Ullaakut/nmap/v3/pkg/osfamilies"
 )
 
 var NmapVersion string

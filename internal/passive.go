@@ -3,13 +3,14 @@ package internal
 import (
 	"context"
 	"fmt"
+	"net"
+	"slices"
+	"time"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"golang.org/x/sync/semaphore"
-	"net"
-	"slices"
-	"time"
 )
 
 var (
@@ -102,6 +103,17 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 				fmt.Println("Destination MAC: ", ethernetPacket.DstMAC)
 				fmt.Println("Ethernet type: ", ethernetPacket.EthernetType)
 				fmt.Println()
+
+				// export function
+				path := "output_passive.csv"
+				header := []string{"Asset_IP", "Protocol", "Sourece_MAC", "Destination_MAC", "Ethernet_Type"}
+				row := [][]string{{ip.SrcIP.String(),
+					ip.Protocol.String(),
+					ethernetPacket.SrcMAC.String(),
+					ethernetPacket.DstMAC.String(),
+					ethernetPacket.EthernetType.String()}}
+				Storedata(path, header, row)
+
 			}
 			fmt.Println("==========================================================================================")
 		}
