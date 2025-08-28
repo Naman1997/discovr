@@ -70,10 +70,6 @@ func ActiveScan(targets string, ports string) {
 
 		for _, port := range host.Ports {
 			fmt.Printf("\tPort %d/%s %s %s %s\n", port.ID, port.Protocol, port.State, port.Service.Name, port.Service.Product)
-			path := "output_passive.csv"
-			header := []string{"Asset_IP", "Protocol", "Sourece_MAC", "Destination_MAC", "Ethernet_Type"}
-			row := [][]string{{port.ID}}
-			Storedata(path, header, row)
 		}
 	}
 

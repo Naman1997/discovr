@@ -1,0 +1,10 @@
+Asset_IP,Protocol,Sourece_MAC,Destination_MAC,Ethernet_Type
+10.215.70.57,UDP,1e:84:cf:cb:e3:b8,d8:c0:a6:3d:0f:03,IPv4
+92.223.116.253,TCP,1e:84:cf:cb:e3:b8,d8:c0:a6:3d:0f:03,IPv4
+40.99.133.242,UDP,1e:84:cf:cb:e3:b8,d8:c0:a6:3d:0f:03,IPv4
+23.208.186.49,TCP,1e:84:cf:cb:e3:b8,d8:c0:a6:3d:0f:03,IPv4
+40.74.79.222,TCP,1e:84:cf:cb:e3:b8,d8:c0:a6:3d:0f:03,IPv4
+40.126.14.160,TCP,1e:84:cf:cb:e3:b8,d8:c0:a6:3d:0f:03,IPv4
+52.109.112.145,TCP,1e:84:cf:cb:e3:b8,d8:c0:a6:3d:0f:03,IPv4
+23.32.60.168,TCP,1e:84:cf:cb:e3:b8,d8:c0:a6:3d:0f:03,IPv4
+150.171.74.16,TCP,1e:84:cf:cb:e3:b8,d8:c0:a6:3d:0f:03,IPv4
