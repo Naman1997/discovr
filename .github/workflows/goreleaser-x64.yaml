@@ -21,7 +21,6 @@ builds:
     ldflags:
       - '-linkmode external -extldflags "-static -ldbus-1 -lsystemd -lpcap -lcap -lrdmacm -libverbs -lnl-route-3 -lnl-3" -X "github.com/Naman1997/discovr/internal.NmapVersion=$NMAP_VERSION"'
 
-tag: "testing"
 archives:
   - formats: [tar.gz]
     # this name template makes the OS and Arch compatible with the results of `uname`.
