@@ -86,6 +86,6 @@ jobs:
         with:
           distribution: goreleaser
           version: '~> v2'
-          args: release -f .github/workflows/goreleaser-x64.yaml --clean --snapshot
+          args: release -f .github/workflows/goreleaser-x64.yaml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
