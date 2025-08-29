@@ -14,13 +14,12 @@ before:
 builds:
   - env:
       - CGO_ENABLED=1
-      - NMAP_VERSION=7.92
     goos:
       - linux
     goarch:
       - amd64
     ldflags:
-      - '-linkmode external -extldflags "-static -ldbus-1 -lsystemd -lpcap -lcap -lrdmacm -libverbs -lnl-route-3 -lnl-3" -X "github.com/Naman1997/discovr/internal.NmapVersion=$NMAP_VERSION"'
+      - '-linkmode external -extldflags "-static -ldbus-1 -lsystemd -lpcap -lcap -lrdmacm -libverbs -lnl-route-3 -lnl-3" -X "github.com/Naman1997/discovr/internal.NmapVersion=7.92"'
 
 archives:
   - formats: [tar.gz]
