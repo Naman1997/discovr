@@ -73,6 +73,7 @@ jobs:
           export $(cat .env | xargs)
           export IMAGE=fedora_nmap
           export CONTAINER_NAME=discovr_nmap
+          export NMAP_VERSION=7.92
           export NMAP_WIN_ZIP=nmap-$NMAP_VERSION-win32.zip
           docker buildx build -f nmap.Dockerfile . --tag $IMAGE --build-arg FEDORA_PACKAGE
           docker create --name $CONTAINER_NAME $IMAGE
