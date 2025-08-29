@@ -1,17 +1,14 @@
 include .env
 
-TARGET   ?= discovr
 IMAGE := fedora_nmap
 CONTAINER_NAME := discovr_nmap
 NMAP_WIN_ZIP := nmap-$(NMAP_VERSION)-win32.zip
-GO_BUILD_FLAGS := --ldflags '-linkmode external -extldflags "-static -s -w" -X "github.com/Naman1997/discovr/internal.NmapVersion=$(NMAP_VERSION)"' -v
-GO       ?= go
 
 all: build
 
 build: get_nmap_binary get_nmap_win_zip
 	@rm -f discovr
-	@$(GO) build $(GO_BUILD_FLAGS) -o $(TARGET) .
+	@go build -ldflags="-X 'github.com/Naman1997/discovr/internal.NmapVersion=$(NMAP_VERSION)'" -v
 
 get_nmap_binary:
 ifeq (,$(wildcard assets/nmap))
