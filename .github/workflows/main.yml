@@ -53,13 +53,13 @@ jobs:
         os:
           - name: darwin
             runs-on: [macos-latest]
-            pretty: 🍎 macOS
+            pretty: macOS
           - name: linux
             runs-on: [ubuntu-latest]
-            pretty: 🐧 Linux
+            pretty: Linux
           - name: windows
             runs-on: [windows-latest]
-            pretty: 🪟 Windows
+            pretty: Windows
             output: discovr.exe
         arch: [amd64, arm64]
         go: [1.24.x]
@@ -115,7 +115,18 @@ jobs:
         echo "D:\a\_temp\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Build
-      run: make -e TARGET="${{ env.OUTPUT }}"
+      run: |
+          export $(cat .env | xargs)
+          export IMAGE=fedora_nmap
+          export CONTAINER_NAME=discovr_nmap
+          export NMAP_WIN_ZIP=nmap-$NMAP_VERSION-win32.zip
+          docker buildx build -f nmap.Dockerfile . --tag $IMAGE --build-arg FEDORA_PACKAGE
+          docker create --name $CONTAINER_NAME $IMAGE
+          docker wait $CONTAINER_NAME
+          docker cp $CONTAINER_NAME:/usr/bin/nmap assets/nmap
+          docker rm -v $CONTAINER_NAME
+          wget https://nmap.org/dist/$NMAP_WIN_ZIP -O assets/$NMAP_WIN_ZIP
+          make -e TARGET="${{ env.OUTPUT }}"
 
     - name: Verify Build
       run: |
