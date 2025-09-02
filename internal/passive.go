@@ -19,6 +19,7 @@ var (
 	passive_results  []ScanResultPassive
 )
 
+// export vars
 type ScanResultPassive struct {
 	SrcIP        string
 	Protocol     string
@@ -26,6 +27,8 @@ type ScanResultPassive struct {
 	DstMAC       string
 	EthernetType string
 }
+
+// end here
 
 func PassiveScan(device string, scanSeconds int) {
 
@@ -113,8 +116,7 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 				fmt.Println("Ethernet type: ", ethernetPacket.EthernetType)
 				fmt.Println()
 
-				//export function here
-				//TODO: save everything in a struct then call it within passive or active through flags if --export path != ""
+				//export SCRUM-94
 				result := ScanResultPassive{
 					SrcIP:        ip.SrcIP.String(),
 					Protocol:     ip.Protocol.String(),
@@ -123,6 +125,7 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 					EthernetType: ethernetPacket.EthernetType.String(),
 				}
 				passive_results = append(passive_results, result)
+				// ends here
 
 			}
 			fmt.Println("==========================================================================================")

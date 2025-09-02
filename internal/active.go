@@ -20,6 +20,7 @@ import (
 
 var NmapVersion string
 
+// export vars
 var active_results []ScanResultActive
 
 type ScanResultActive struct {
@@ -29,6 +30,8 @@ type ScanResultActive struct {
 	Service  string
 	Product  string
 }
+
+// end here
 
 func ActiveScan(targets string, ports string) {
 
@@ -81,7 +84,8 @@ func ActiveScan(targets string, ports string) {
 
 		for _, port := range host.Ports {
 			fmt.Printf("\tPort %d/%s %s %s %s\n", port.ID, port.Protocol, port.State, port.Service.Name, port.Service.Product)
-			// export
+
+			// export SCRUM-94
 			result := ScanResultActive{
 				ID:       strconv.Itoa(int(port.ID)),
 				Protocol: port.Protocol,
@@ -90,6 +94,7 @@ func ActiveScan(targets string, ports string) {
 				Product:  port.Service.Product,
 			}
 			active_results = append(active_results, result)
+			// ends here
 		}
 	}
 
