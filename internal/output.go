@@ -46,8 +46,8 @@ func Storedata(file_path string, head []string, data []ScanResultPassive) error 
 
 func PassiveExport(path string) {
 	if path != "" {
-		passiveheader := []string{"Source_IP", "Protocol", "Source_MAC", "Destination_Mac", "Ethernet_Type"}
-		Storedata(path, passiveheader, passive_results)
+		header := []string{"Source_IP", "Protocol", "Source_MAC", "Destination_Mac", "Ethernet_Type"}
+		Storedata(path, header, passive_results)
 	} else {
 		return
 	}
@@ -92,8 +92,8 @@ func Storedata_A(file_path string, head []string, data []ScanResultActive) error
 
 func ActiveExport(path string) {
 	if path != "" {
-		passiveheader := []string{"ID", "Protocol", "Source_MAC", "Destination_Mac", "Ethernet_Type"}
-		Storedata_A(path, passiveheader, active_results)
+		header := []string{"ID", "Protocol", "State", "Service", "Product"}
+		Storedata_A(path, header, active_results)
 	} else {
 		return
 	}
