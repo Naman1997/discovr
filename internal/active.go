@@ -20,7 +20,6 @@ import (
 
 var NmapVersion string
 
-// export vars
 var active_results []ScanResultActive
 
 type ScanResultActive struct {
@@ -31,7 +30,7 @@ type ScanResultActive struct {
 	Product  string
 }
 
-func ActiveScan(targets string, ports string) {
+func ActiveScan(targets string, ports string, osDetection bool) {
 
 	// TODO: Use the system nmap if it is present
 	// import "os/exec"
@@ -46,7 +45,33 @@ func ActiveScan(targets string, ports string) {
 	// fmt.Printf(nmapPath)
 	// fmt.Println("")
 
-	scanner, err := createScanner(targets, ports, nmapPath)
+	// Configure the nmap scanner
+	scanner, err := createScanner(targets, nmapPath)
+	if ports == "" {
+		scanner.AddOptions(nmap.WithMostCommonPorts(1000))
+	} else {
+		scanner.AddOptions(nmap.WithPorts(ports))
+	}
+
+	// Only enable OS detection if user is running with elevated privs
+	if osDetection {
+		isAdmin := false
+		if runtime.GOOS == "windows" {
+			isAdmin = isWindowsAdmin()
+		} else {
+			// For Unix-like systems (Linux, macOS, etc.)
+			if os.Geteuid() == 0 {
+				isAdmin = true
+			}
+		}
+
+		if isAdmin {
+			scanner.AddOptions(nmap.WithOSDetection())
+			scanner.AddOptions(nmap.WithPrivileged())
+		} else {
+			log.Fatalf("Scan Failed: OS scan requires elevated privileges!")
+		}
+	}
 
 	result, warnings, err := scanner.Run()
 	if len(*warnings) > 0 {
@@ -63,21 +88,25 @@ func ActiveScan(targets string, ports string) {
 			continue
 		}
 
-		matchedHosts := []string{}
-
-		for _, match := range host.OS.Matches {
-			if !slices.Contains(matchedHosts, host.Addresses[0].Addr) {
-				for _, class := range match.Classes {
-					switch class.OSFamily() {
-					case osfamily.Linux:
-						fmt.Printf("Discovered host running Linux: %q\n", host.Addresses[0])
-						matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
-					case osfamily.Windows:
-						fmt.Printf("Discovered host running Windows: %q\n", host.Addresses[0])
-						matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
+		// Log host OS if OS detection is enabled
+		if len(host.OS.Matches) > 0 {
+			matchedHosts := []string{}
+			for _, match := range host.OS.Matches {
+				if !slices.Contains(matchedHosts, host.Addresses[0].Addr) {
+					for _, class := range match.Classes {
+						switch class.OSFamily() {
+						case osfamily.Linux:
+							fmt.Printf("Discovered host running Linux: %q\n", host.Addresses[0])
+							matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
+						case osfamily.Windows:
+							fmt.Printf("Discovered host running Windows: %q\n", host.Addresses[0])
+							matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
+						}
 					}
 				}
 			}
+		} else {
+			fmt.Printf("Discovered host: %q\n", host.Addresses[0])
 		}
 
 		for _, port := range host.Ports {
@@ -98,30 +127,17 @@ func ActiveScan(targets string, ports string) {
 	fmt.Printf("Nmap done: %d hosts up scanned in %.2f seconds\n", len(result.Hosts), result.Stats.Finished.Elapsed)
 
 	// Remove the dir containing nmap
-	_ = os.RemoveAll(nmapDir)
+	defer os.RemoveAll(nmapDir)
 }
 
-func createScanner(targets string, ports string, nmapPath string) (*nmap.Scanner, error) {
-	if ports == "" {
-		return nmap.NewScanner(
-			context.Background(),
-			nmap.WithTargets(targets),
-			nmap.WithOSDetection(), // TODO: Needs to run with sudo, need to make this a flag
-			nmap.WithBinaryPath(nmapPath),
-			nmap.WithMostCommonPorts(1000),
-			nmap.WithServiceInfo(),
-		)
-
-	} else {
-		return nmap.NewScanner(
-			context.Background(),
-			nmap.WithTargets(targets),
-			nmap.WithOSDetection(), // TODO: Needs to run with sudo, need to make this a flag
-			nmap.WithBinaryPath(nmapPath),
-			nmap.WithPorts(ports),
-			nmap.WithServiceInfo(),
-		)
-	}
+func createScanner(targets string, nmapPath string) (*nmap.Scanner, error) {
+	return nmap.NewScanner(
+		context.Background(),
+		nmap.WithTargets(targets),
+		nmap.WithBinaryPath(nmapPath),
+		nmap.WithServiceInfo(),
+		nmap.WithUnprivileged(),
+	)
 }
 
 func extractNmap() (string, string) {
@@ -191,4 +207,13 @@ func unzip(destination string, zipFilePath string) {
 		dstFile.Close()
 		fileInArchive.Close()
 	}
+}
+
+// Source: https://gist.github.com/jerblack/d0eb182cc5a1c1d92d92a4c4fcc416c6
+func isWindowsAdmin() bool {
+	_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
+	if err != nil {
+		return false
+	}
+	return true
 }

@@ -1,43 +1,5 @@
 name: Go Build & Test
 
-# on:
-#   push:
-#     branches: [ "main" ]
-#   pull_request:
-#     branches: [ "main" ]
-
-# jobs:
-
-#   build:
-#     runs-on: ubuntu-latest
-#     steps:
-#     - uses: actions/checkout@v4.2.2
-
-#     - name: Set up Go
-#       uses: actions/setup-go@v5.5.0
-#       with:
-#         go-version: 1.24
-
-#     - name: Install libpcap-dev
-#       run: sudo apt-get install -y libpcap-dev make
-
-#     - name: Build
-#       run: |
-#           export $(cat .env | xargs)
-#           export IMAGE=fedora_nmap
-#           export CONTAINER_NAME=discovr_nmap
-#           export NMAP_WIN_ZIP=nmap-$NMAP_VERSION-win32.zip
-#           docker buildx build -f nmap.Dockerfile . --tag $IMAGE --build-arg FEDORA_PACKAGE
-#           docker create --name $CONTAINER_NAME $IMAGE
-#           docker wait $CONTAINER_NAME
-#           docker cp $CONTAINER_NAME:/usr/bin/nmap assets/nmap
-#           docker rm -v $CONTAINER_NAME
-#           wget https://nmap.org/dist/$NMAP_WIN_ZIP -O assets/$NMAP_WIN_ZIP
-#           go build -ldflags="-X 'github.com/Naman1997/discovr/internal.NmapVersion=$NMAP_VERSION'" -v
-
-#     - name: Test
-#       run: go test -v ./...
-
 on:
   push:
     tags:

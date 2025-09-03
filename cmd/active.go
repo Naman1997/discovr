@@ -6,9 +6,10 @@ import (
 )
 
 var (
-	Target     string
-	Ports      string
-	PathActive string
+	Target      string
+	Ports       string
+	OsDetection bool
+	PathActive  string
 )
 
 var activeCmd = &cobra.Command{
@@ -16,7 +17,7 @@ var activeCmd = &cobra.Command{
 	Short: "Scan local network actively",
 	Long:  `Sends network requests across the CIDR range to determine device ip, mac address and other details`,
 	Run: func(cmd *cobra.Command, args []string) {
-		internal.ActiveScan(Target, Ports)
+		internal.ActiveScan(Target, Ports, OsDetection)
 		header := []string{"ID", "Protocol", "State", "Service", "Product"}
 		internal.ActiveExport(PathActive, header)
 	},
@@ -27,5 +28,6 @@ func init() {
 
 	activeCmd.Flags().StringVarP(&Target, "target", "t", "127.0.0.1", "Target CIDR range or IP address to scan")
 	activeCmd.Flags().StringVarP(&Ports, "ports", "p", "", "Ports to scan on target systems (defaults to top 1000 most common ports)")
+	activeCmd.Flags().BoolVarP(&OsDetection, "detect-os", "d", false, "Enable OS detection (requires sudo)")
 	activeCmd.Flags().StringVarP(&PathActive, "export", "e", "", "Export results to CSV file")
 }
