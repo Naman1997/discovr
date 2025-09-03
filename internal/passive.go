@@ -16,7 +16,17 @@ import (
 var (
 	sem              = semaphore.NewWeighted(2)
 	discoveredAssets = []string{}
+	passive_results  []ScanResultPassive
 )
+
+// export vars
+type ScanResultPassive struct {
+	SrcIP        string
+	Protocol     string
+	SrcMAC       string
+	DstMAC       string
+	EthernetType string
+}
 
 func PassiveScan(device string, scanSeconds int) {
 
@@ -104,15 +114,15 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 				fmt.Println("Ethernet type: ", ethernetPacket.EthernetType)
 				fmt.Println()
 
-				// export function
-				path := "output_passive.csv"
-				header := []string{"Asset_IP", "Protocol", "Sourece_MAC", "Destination_MAC", "Ethernet_Type"}
-				row := [][]string{{ip.SrcIP.String(),
-					ip.Protocol.String(),
-					ethernetPacket.SrcMAC.String(),
-					ethernetPacket.DstMAC.String(),
-					ethernetPacket.EthernetType.String()}}
-				Storedata(path, header, row)
+				//export SCRUM-94
+				result := ScanResultPassive{
+					SrcIP:        ip.SrcIP.String(),
+					Protocol:     ip.Protocol.String(),
+					SrcMAC:       ethernetPacket.SrcMAC.String(),
+					DstMAC:       ethernetPacket.DstMAC.String(),
+					EthernetType: ethernetPacket.EthernetType.String(),
+				}
+				passive_results = append(passive_results, result)
 
 			}
 			fmt.Println("==========================================================================================")

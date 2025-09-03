@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Naman1997/discovr/assets"
@@ -18,6 +19,16 @@ import (
 )
 
 var NmapVersion string
+
+var active_results []ScanResultActive
+
+type ScanResultActive struct {
+	ID       string
+	Protocol string
+	State    string
+	Service  string
+	Product  string
+}
 
 func ActiveScan(targets string, ports string, osDetection bool) {
 
@@ -101,6 +112,16 @@ func ActiveScan(targets string, ports string, osDetection bool) {
 
 		for _, port := range host.Ports {
 			fmt.Printf("\tPort %d/%s %s %s %s\n", port.ID, port.Protocol, port.State, port.Service.Name, port.Service.Product)
+
+			// export SCRUM-94
+			result := ScanResultActive{
+				ID:       strconv.Itoa(int(port.ID)),
+				Protocol: port.Protocol,
+				State:    port.State.State,
+				Service:  port.Service.Name,
+				Product:  port.Service.Product,
+			}
+			active_results = append(active_results, result)
 		}
 	}
 
