@@ -47,14 +47,14 @@ func ActiveScan(targets string, ports string, osDetection bool) {
 
 	// Configure the nmap scanner
 	scanner, err := createScanner(targets, nmapPath)
-	if (ports == ""){
+	if ports == "" {
 		scanner.AddOptions(nmap.WithMostCommonPorts(1000))
 	} else {
 		scanner.AddOptions(nmap.WithPorts(ports))
 	}
 
 	// Only enable OS detection if user is running with elevated privs
-	if (osDetection) {
+	if osDetection {
 		isAdmin := false
 		if runtime.GOOS == "windows" {
 			isAdmin = isWindowsAdmin()
@@ -64,15 +64,14 @@ func ActiveScan(targets string, ports string, osDetection bool) {
 				isAdmin = true
 			}
 		}
-		
-		if(isAdmin) {
+
+		if isAdmin {
 			scanner.AddOptions(nmap.WithOSDetection())
 			scanner.AddOptions(nmap.WithPrivileged())
 		} else {
 			log.Fatalf("Scan Failed: OS scan requires elevated privileges!")
 		}
 	}
-	
 
 	result, warnings, err := scanner.Run()
 	if len(*warnings) > 0 {
@@ -90,7 +89,7 @@ func ActiveScan(targets string, ports string, osDetection bool) {
 		}
 
 		// Log host OS if OS detection is enabled
-		if(len(host.OS.Matches) > 0){
+		if len(host.OS.Matches) > 0 {
 			matchedHosts := []string{}
 			for _, match := range host.OS.Matches {
 				if !slices.Contains(matchedHosts, host.Addresses[0].Addr) {
@@ -133,12 +132,12 @@ func ActiveScan(targets string, ports string, osDetection bool) {
 
 func createScanner(targets string, nmapPath string) (*nmap.Scanner, error) {
 	return nmap.NewScanner(
-			context.Background(),
-			nmap.WithTargets(targets),
-			nmap.WithBinaryPath(nmapPath),
-			nmap.WithServiceInfo(),
-			nmap.WithUnprivileged(),
-		)
+		context.Background(),
+		nmap.WithTargets(targets),
+		nmap.WithBinaryPath(nmapPath),
+		nmap.WithServiceInfo(),
+		nmap.WithUnprivileged(),
+	)
 }
 
 func extractNmap() (string, string) {

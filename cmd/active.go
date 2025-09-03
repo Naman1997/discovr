@@ -6,10 +6,10 @@ import (
 )
 
 var (
-	Target string
-	Ports  string
+	Target      string
+	Ports       string
 	OsDetection bool
-	PathActive string
+	PathActive  string
 )
 
 var activeCmd = &cobra.Command{
