@@ -7,94 +7,64 @@ import (
 	"path/filepath"
 )
 
-func Storedata(file_path string, head []string, data []ScanResultPassive) error {
+func Export(filePath string, header []string, rows [][]string) error {
 	fmt.Println("\n")
-	if filepath.Ext(file_path) != ".csv" {
-		file_path = file_path + ".csv" // or return error instead
-		fmt.Println("Export path did not have .csv extension, saving as:", file_path)
+	if filepath.Ext(filePath) != ".csv" {
+		filePath = filePath + ".csv"
+		fmt.Println("Export path did not have .csv extension, saving as:", filePath)
 	}
 
 	// Check if file exists
-	_, err := os.Stat(file_path)
+	_, err := os.Stat(filePath)
 	fileExists := err == nil
 
-	// Append to file if it exists, create new file if it does not exist, raise error if errors
-	file, err := os.OpenFile(file_path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// Open or create file
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Printf("Error! %v", err)
+		return fmt.Errorf("error opening file: %v", err)
 	}
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Write header if file is new
+	// Write header only if file is new
 	if !fileExists {
-		if err := writer.Write(head); err != nil {
-			fmt.Printf("Error! %v", err)
+		if err := writer.Write(header); err != nil {
+			return fmt.Errorf("error writing header: %v", err)
 		}
 	}
 
-	// Write new data rows
-	for _, r := range data {
-		if err := writer.Write([]string{r.SrcIP, r.Protocol, r.SrcMAC, r.DstMAC, r.EthernetType}); err != nil {
-			fmt.Printf("Error! %v", err)
+	// Write rows
+	for _, row := range rows {
+		if err := writer.Write(row); err != nil {
+			return fmt.Errorf("error writing row: %v", err)
 		}
 	}
+
 	return nil
 }
 
-func PassiveExport(path string) {
-	if path != "" {
-		header := []string{"Source_IP", "Protocol", "Source_MAC", "Destination_Mac", "Ethernet_Type"}
-		Storedata(path, header, passive_results)
-	} else {
+// Convert Passive results
+func PassiveExport(path string, header []string) {
+	if path == "" {
 		return
 	}
+	rows := make([][]string, len(passive_results))
+	for i, r := range passive_results {
+		rows[i] = []string{r.SrcIP, r.Protocol, r.SrcMAC, r.DstMAC, r.EthernetType}
+	}
+	Export(path, header, rows)
 }
 
-func Storedata_A(file_path string, head []string, data []ScanResultActive) error {
-	fmt.Println("\n")
-	if filepath.Ext(file_path) != ".csv" {
-		file_path = file_path + ".csv" // or return error instead
-		fmt.Println("Export path did not have .csv extension, saving as:", file_path)
-	}
-
-	// Check if file exists
-	_, err := os.Stat(file_path)
-	fileExists := err == nil
-
-	// Append to file if it exists, create new file if it does not exist, raise error if errors
-	file, err := os.OpenFile(file_path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Printf("Error! %v", err)
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	// Write header if file is new
-	if !fileExists {
-		if err := writer.Write(head); err != nil {
-			fmt.Printf("Error! %v", err)
-		}
-	}
-
-	// Write new data rows
-	for _, r := range data {
-		if err := writer.Write([]string{r.ID, r.Protocol, r.State, r.Service, r.Product}); err != nil {
-			fmt.Printf("Error! %v", err)
-		}
-	}
-	return nil
-}
-
-func ActiveExport(path string) {
-	if path != "" {
-		header := []string{"ID", "Protocol", "State", "Service", "Product"}
-		Storedata_A(path, header, active_results)
-	} else {
+// Convert Active results
+func ActiveExport(path string, header []string) {
+	if path == "" {
 		return
 	}
+	rows := make([][]string, len(active_results))
+	for i, r := range active_results {
+		rows[i] = []string{r.ID, r.Protocol, r.State, r.Service, r.Product}
+	}
+	Export(path, header, rows)
 }

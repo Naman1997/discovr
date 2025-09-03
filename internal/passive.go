@@ -28,8 +28,6 @@ type ScanResultPassive struct {
 	EthernetType string
 }
 
-// end here
-
 func PassiveScan(device string, scanSeconds int) {
 
 	// Initialize context and define scanDuration
@@ -125,7 +123,6 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 					EthernetType: ethernetPacket.EthernetType.String(),
 				}
 				passive_results = append(passive_results, result)
-				// ends here
 
 			}
 			fmt.Println("==========================================================================================")

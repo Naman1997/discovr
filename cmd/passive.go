@@ -6,9 +6,9 @@ import (
 )
 
 var (
-	Interface         string
-	ScanTime          int
-	ExportPathPassive string
+	Interface   string
+	ScanTime    int
+	PathPassive string
 )
 
 var passiveCmd = &cobra.Command{
@@ -17,7 +17,8 @@ var passiveCmd = &cobra.Command{
 	Long:  `Reads incomming packets to determine devices present on the network`,
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.PassiveScan(Interface, ScanTime)
-		internal.PassiveExport(ExportPathPassive)
+		header := []string{"Source_IP", "Protocol", "Source_MAC", "Destination_Mac", "Ethernet_Type"}
+		internal.PassiveExport(PathPassive, header)
 
 	},
 }
@@ -26,5 +27,5 @@ func init() {
 	localCmd.AddCommand(passiveCmd)
 	passiveCmd.Flags().StringVarP(&Interface, "interface", "i", "any", "Interface to read packets from")
 	passiveCmd.Flags().IntVarP(&ScanTime, "duration", "d", 10, "Number of seconds to run the scan")
-	passiveCmd.Flags().StringVarP(&ExportPathPassive, "export", "e", "", "Export results to CSV file")
+	passiveCmd.Flags().StringVarP(&PathPassive, "export", "e", "", "Export results to CSV file")
 }

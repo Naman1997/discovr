@@ -31,8 +31,6 @@ type ScanResultActive struct {
 	Product  string
 }
 
-// end here
-
 func ActiveScan(targets string, ports string) {
 
 	// TODO: Use the system nmap if it is present
@@ -94,7 +92,6 @@ func ActiveScan(targets string, ports string) {
 				Product:  port.Service.Product,
 			}
 			active_results = append(active_results, result)
-			// ends here
 		}
 	}
 
