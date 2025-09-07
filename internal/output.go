@@ -79,3 +79,15 @@ func ActiveExport(path string, header []string, nmapScan bool) {
 		return
 	}
 }
+
+// Convert AWS results
+func AwsExport(path string, header []string) {
+	if path == "" {
+		return
+	}
+	rows := make([][]string, len(aws_results))
+	for i, r := range aws_results {
+		rows[i] = []string{r.InstanceId, r.PublicIp, r.PrivateIPs, r.MacAddress, r.VpcId, r.SubnetId, r.Hostname, r.Region}
+	}
+	Export(path, header, rows)
+}
