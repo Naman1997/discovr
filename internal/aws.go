@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -11,12 +13,56 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
-// TODO: add configPath string, credentialPath string for auth options
-func AwsScan(regionFilter string) {
-	// Load the AWS config (~/.aws/config)
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		log.Fatalf("unable to load SDK config, %v", err)
+var aws_results []AwsScanResult
+
+type AwsScanResult struct {
+	InstanceId		string
+	PublicIp		string
+	PrivateIPs		string
+	MacAddress		string
+	VpcId			string
+	SubnetId		string
+	Hostname		string
+	Region			string
+}
+
+func AwsScan(regionFilter string, customConfigs []string, customCredentials []string, customProfile string) {
+
+	// Set custom profile if provided
+	if(customProfile != ""){
+		os.Setenv("AWS_PROFILE", customProfile)
+	}
+
+	var cfg aws.Config
+	var err error
+
+	// Load custom config options
+	if(len(customConfigs) != 0 && len(customCredentials) != 0){
+		cfg, err = config.LoadDefaultConfig(context.TODO(), 
+			config.WithSharedCredentialsFiles(
+				customCredentials,
+			),
+			config.WithSharedConfigFiles(
+				customConfigs,
+			),
+		) 
+	} else if (len(customConfigs) != 0) {
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithSharedConfigFiles(
+				customConfigs,
+			),
+		) 
+	} else if (len(customCredentials) != 0) {
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithSharedCredentialsFiles(
+				customCredentials,
+			),
+		) 
+	} else {
+		cfg, err = config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			log.Fatalf("unable to load SDK config, %v", err)
+		}
 	}
 
 	// Create an EC2 client to list all regions
@@ -27,10 +73,10 @@ func AwsScan(regionFilter string) {
 	}
 
 	// Loop through each region and describe instance in each one
-	if(regionFilter == ""){
+	if regionFilter == "" {
 		for _, region := range result.Regions {
 			regionName := aws.ToString(region.RegionName)
-			fmt.Printf("Region: %s\n", regionName)
+			fmt.Printf("Scanning region: %s\n", regionName)
 			ProcessInstancesForRegion(cfg, regionName)
 		}
 	} else {
@@ -53,7 +99,7 @@ func ProcessInstancesForRegion(cfg aws.Config, regionName string) {
 				instanceID := aws.ToString(instance.InstanceId)
 				fmt.Printf("  Instance ID: %s\n", instanceID)
 
-				pageSize := int32(10)
+				pageSize := int32(50)
 				netPaginator := ec2.NewDescribeNetworkInterfacesPaginator(regionSvc, &ec2.DescribeNetworkInterfacesInput{
 					Filters: []types.Filter{
 						{
@@ -96,12 +142,26 @@ func ProcessInstancesForRegion(cfg aws.Config, regionName string) {
 							hostname = aws.ToString(netInterface.PrivateDnsName)
 						}
 
+						fmt.Printf("	Instance Id: %s\n", instanceID)
 						fmt.Printf("    Public IP: %s\n", publicIP)
 						fmt.Printf("    MAC Address: %s\n", macAddress)
 						fmt.Printf("    VPC ID: %s\n", vpcID)
 						fmt.Printf("    Subnet ID: %s\n", subnetID)
 						fmt.Printf("    Private IPs: %v\n", privateIPs)
 						fmt.Printf("    Hostname: %s\n", hostname)
+						fmt.Printf("    Region: %s\n", regionName)
+
+						result := AwsScanResult{
+							InstanceId:		instanceID,
+							PublicIp:		publicIP,
+							PrivateIPs:		strings.Join(privateIPs, " "),
+							MacAddress:		macAddress,
+							VpcId:			vpcID,
+							SubnetId:		subnetID,
+							Hostname:		hostname,
+							Region:			regionName,
+						}
+						aws_results = append(aws_results, result)
 					}
 				}
 			}

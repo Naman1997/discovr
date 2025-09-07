@@ -7,35 +7,35 @@ import (
 )
 
 var (
-	Region      string
-	Credential      string
+	Region      		string
+	Profile				string
+	AwsCsvExportPath	string
+	Config				[]string
+	Credential      	[]string
 )
 
 var awsCmd = &cobra.Command{
 	Use:   "aws",
-	Short: "Scan your aws environment",
-	Long: `Scan your environment for EC2 instances. For example:
-
-Usage:
-discovr aws --region REGION --config CONFIG_PATH --credential CREDENTIAL_PATH
+	Short: "Scan your AWS environment for EC2 instances",
+	Long: `Scan your AWS environment for EC2 instances
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		internal.AwsScan(Region)
+		internal.AwsScan(Region, Config, Credential, Profile)
+		header := []string{"InstanceId", "PublicIp", "PrivateIPs", "MacAddress", "VpcId", "SubnetId", "Hostname", "Region"}
+		internal.AwsExport(AwsCsvExportPath, header)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(awsCmd)
-
 	awsCmd.Flags().StringVarP(&Region, "region", "r", "", "Region for filtering results")
-	awsCmd.Flags().StringVarP(&Credential, "credential", "x", "", "Path to aws credential file")
-
-	// TODO: Use this for auth options
-	var config string
+	awsCmd.Flags().StringVarP(&Profile, "profile", "p", "", "AWS profile for fetching results")
+	awsCmd.Flags().StringVarP(&AwsCsvExportPath, "export", "e", "", "Export results to CSV file")
+	awsCmd.Flags().StringSliceVarP(&Credential, "credential", "x", []string{}, "Custom AWS credential file(s)")
 	switch runtime.GOOS {
 	case "windows":
-		awsCmd.Flags().StringVarP(&config, "config", "c", "\\%USERPROFILE%\\.aws\\config", "Path to aws config file")
+		awsCmd.Flags().StringSliceVarP(&Config, "config", "c", []string{}, "Custom AWS config file(s)")
 	default:
-		awsCmd.Flags().StringVarP(&config, "config", "c", "~/.aws/config", "Path to aws config file")
+		awsCmd.Flags().StringSliceVarP(&Config, "config", "c", []string{}, "Custom AWS config file(s)")
 	}
 }
