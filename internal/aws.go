@@ -16,20 +16,20 @@ import (
 var aws_results []AwsScanResult
 
 type AwsScanResult struct {
-	InstanceId		string
-	PublicIp		string
-	PrivateIPs		string
-	MacAddress		string
-	VpcId			string
-	SubnetId		string
-	Hostname		string
-	Region			string
+	InstanceId string
+	PublicIp   string
+	PrivateIPs string
+	MacAddress string
+	VpcId      string
+	SubnetId   string
+	Hostname   string
+	Region     string
 }
 
 func AwsScan(regionFilter string, customConfigs []string, customCredentials []string, customProfile string) {
 
 	// Set custom profile if provided
-	if(customProfile != ""){
+	if customProfile != "" {
 		os.Setenv("AWS_PROFILE", customProfile)
 	}
 
@@ -37,27 +37,27 @@ func AwsScan(regionFilter string, customConfigs []string, customCredentials []st
 	var err error
 
 	// Load custom config options
-	if(len(customConfigs) != 0 && len(customCredentials) != 0){
-		cfg, err = config.LoadDefaultConfig(context.TODO(), 
+	if len(customConfigs) != 0 && len(customCredentials) != 0 {
+		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithSharedCredentialsFiles(
 				customCredentials,
 			),
 			config.WithSharedConfigFiles(
 				customConfigs,
 			),
-		) 
-	} else if (len(customConfigs) != 0) {
+		)
+	} else if len(customConfigs) != 0 {
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithSharedConfigFiles(
 				customConfigs,
 			),
-		) 
-	} else if (len(customCredentials) != 0) {
+		)
+	} else if len(customCredentials) != 0 {
 		cfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithSharedCredentialsFiles(
 				customCredentials,
 			),
-		) 
+		)
 	} else {
 		cfg, err = config.LoadDefaultConfig(context.TODO())
 		if err != nil {
@@ -152,14 +152,14 @@ func ProcessInstancesForRegion(cfg aws.Config, regionName string) {
 						fmt.Printf("    Region: %s\n", regionName)
 
 						result := AwsScanResult{
-							InstanceId:		instanceID,
-							PublicIp:		publicIP,
-							PrivateIPs:		strings.Join(privateIPs, " "),
-							MacAddress:		macAddress,
-							VpcId:			vpcID,
-							SubnetId:		subnetID,
-							Hostname:		hostname,
-							Region:			regionName,
+							InstanceId: instanceID,
+							PublicIp:   publicIP,
+							PrivateIPs: strings.Join(privateIPs, " "),
+							MacAddress: macAddress,
+							VpcId:      vpcID,
+							SubnetId:   subnetID,
+							Hostname:   hostname,
+							Region:     regionName,
 						}
 						aws_results = append(aws_results, result)
 					}

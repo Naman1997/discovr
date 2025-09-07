@@ -7,11 +7,11 @@ import (
 )
 
 var (
-	Region      		string
-	Profile				string
-	AwsCsvExportPath	string
-	Config				[]string
-	Credential      	[]string
+	Region           string
+	Profile          string
+	AwsCsvExportPath string
+	Config           []string
+	Credential       []string
 )
 
 var awsCmd = &cobra.Command{
