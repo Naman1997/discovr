@@ -29,7 +29,12 @@ import (
 
 // use map variable to avoid duplicates
 
-var defaultscan_results []ScanResultDfActive
+var (
+	defaultscan_results []ScanResultDfActive
+	seenResults         = make(map[string]bool)
+	mu                  sync.Mutex
+	globalStop          = make(chan struct{})
+)
 
 type ScanResultDfActive struct {
 	Date      string
@@ -59,7 +64,7 @@ func DefaultScan() {
 		go func(iface net.Interface) {
 			defer wg.Done()
 			if err := scan(&iface, &devices); err != nil {
-				log.Printf("interface %v: %v", iface.Name, err)
+				//log.Printf("interface %v: %v", iface.Name, err)
 			}
 		}(iface)
 	}
@@ -122,56 +127,33 @@ func scan(iface *net.Interface, devices *[]pcap.Interface) error {
 
 	// Start up a goroutine to read in packet data.
 
-	// stop := make(chan struct{})
-	// go readARP(handle, iface, stop)
-	// defer close(stop)
-	// for {
-	// 	// Write our scan packets out to the handle.
-	// 	if err := writeARP(handle, iface, addr); err != nil {
-	// 		log.Printf("error writing packets on %v: %v", iface.Name, err)
-	// 		return err
-	// 	}
-	// 	// We don't know exactly how long it'll take for packets to be
-	// 	// sent back to us, but 10 seconds should be more than enough
-	// 	// time ;)
-	// 	time.Sleep(10 * time.Second)
-
-	// }
-
 	stop := make(chan struct{})
-	done := make(chan struct{})
-	go func() {
-		readARP(handle, iface, stop)
-		close(done)
-	}()
-
-	for i := 0; i < 2; i++ {
-		// Write our scan packets out to the handle.
-		if err := writeARP(handle, iface, addr); err != nil {
-			log.Printf("error writing packets on %v: %v", iface.Name, err)
-			close(stop)
-			<-done
-			return err
+	go readARP(handle, iface, stop)
+	defer close(stop)
+	for {
+		select {
+		case <-globalStop:
+			log.Printf("Stopping scan for interface %v", iface.Name)
+			return nil
+		default:
+			if err := writeARP(handle, iface, addr); err != nil {
+				// log.Printf("error writing packets on %v: %v", iface.Name, err)
+				return err
+			}
+			time.Sleep(10 * time.Second)
 		}
-		time.Sleep(10 * time.Second)
 	}
-	close(stop)
-	<-done
-	return fmt.Errorf("no replies received on %v", iface.Name)
 }
 
-// readARP watches a handle for incoming ARP responses we might care about, and prints them.
-//
-// readARP loops until 'stop' is closed.
+// readARP reads in packets from the pcap handle, looking for ARP replies.
 func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
-
 	src := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	in := src.Packets()
+
 	for {
 		var packet gopacket.Packet
 		select {
 		case <-stop:
-
 			return
 		case packet = <-in:
 			arpLayer := packet.Layer(layers.LayerTypeARP)
@@ -181,26 +163,13 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 			arp := arpLayer.(*layers.ARP)
 
 			if arp.Operation != layers.ARPReply || bytes.Equal([]byte(iface.HardwareAddr), arp.SourceHwAddress) {
-				// This is a packet I sent.
 				continue
 			}
-			// Note:  we might get some packets here that aren't responses to ones we've sent,
-			// if for example someone else sends US an ARP request.  Doesn't much matter, though...
-			// all information is good information :)
 
 			now := time.Now()
-			date := now.Format("2006-01-02")      // YYYY-MM-DD
-			currentTime := now.Format("15:04:05") // HH:MM:SS
+			date := now.Format("2006-01-02")
+			currentTime := now.Format("15:04:05")
 
-			log.Printf("Date: %s | Time: %s | IP %v is at %v from interface: %v",
-				date,
-				currentTime,
-				net.IP(arp.SourceProtAddress),
-				net.HardwareAddr(arp.SourceHwAddress),
-				iface.Name,
-			)
-
-			// export SCRUM-135
 			result := ScanResultDfActive{
 				Date:      date,
 				Time:      currentTime,
@@ -208,7 +177,22 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 				Dest_IP:   net.IP(arp.SourceProtAddress).String(),
 				Dest_Mac:  net.HardwareAddr(arp.SourceHwAddress).String(),
 			}
+
+			key := result.Interface + "_" + result.Dest_IP + "_" + result.Dest_Mac
+			mu.Lock()
+			if seenResults[key] {
+				log.Printf("Duplicate detected for %s, stopping all scans...", key)
+				mu.Unlock()
+				close(globalStop) // stop this goroutine
+				return
+			}
+			seenResults[key] = true
 			defaultscan_results = append(defaultscan_results, result)
+			mu.Unlock()
+
+			log.Printf("Date: %s | Time: %s | IP %v is at %v from interface: %v",
+				result.Date, result.Time, result.Dest_IP, result.Dest_Mac, result.Interface,
+			)
 		}
 	}
 }
