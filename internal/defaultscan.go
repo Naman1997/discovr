@@ -33,7 +33,7 @@ var (
 	defaultscan_results []ScanResultDfActive
 	seenResults         = make(map[string]bool)
 	mu                  sync.Mutex
-	globalStop          = make(chan struct{})
+	wg                  sync.WaitGroup
 )
 
 type ScanResultDfActive struct {
@@ -57,7 +57,6 @@ func DefaultScan() {
 		panic(err)
 	}
 
-	var wg sync.WaitGroup
 	for _, iface := range ifaces {
 		wg.Add(1)
 		// Start up a scan on each interface.
@@ -79,6 +78,7 @@ func DefaultScan() {
 // scan loops forever, sending packets out regularly.  It returns an error if
 // it's ever unable to write a packet.
 func scan(iface *net.Interface, devices *[]pcap.Interface) error {
+
 	// We just look for IPv4 addresses, so try to find if the interface has one.
 	var addr *net.IPNet
 	if addrs, err := iface.Addrs(); err != nil {
@@ -126,27 +126,33 @@ func scan(iface *net.Interface, devices *[]pcap.Interface) error {
 	defer handle.Close()
 
 	// Start up a goroutine to read in packet data.
-
+	var once sync.Once
 	stop := make(chan struct{})
-	go readARP(handle, iface, stop)
-	defer close(stop)
+	stopScan := func() {
+		close(stop)
+	}
+	go readARP(handle, iface, stop, &once, stopScan)
+
 	for {
 		select {
-		case <-globalStop:
+		case <-stop:
 			log.Printf("Stopping scan for interface %v", iface.Name)
+			wg.Done()
 			return nil
 		default:
 			if err := writeARP(handle, iface, addr); err != nil {
 				// log.Printf("error writing packets on %v: %v", iface.Name, err)
+				once.Do(stopScan)
 				return err
 			}
-			time.Sleep(10 * time.Second)
 		}
+		time.Sleep(10 * time.Second)
+		println("Scanning...")
 	}
 }
 
 // readARP reads in packets from the pcap handle, looking for ARP replies.
-func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
+func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}, once *sync.Once, stopScan func()) {
 	src := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	in := src.Packets()
 
@@ -183,7 +189,7 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 			if seenResults[key] {
 				log.Printf("Duplicate detected for %s, stopping all scans...", key)
 				mu.Unlock()
-				close(globalStop) // stop this goroutine
+				once.Do(stopScan) // stop this goroutine
 				return
 			}
 			seenResults[key] = true
