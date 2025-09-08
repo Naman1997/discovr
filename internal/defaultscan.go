@@ -33,7 +33,7 @@ var (
 	defaultscan_results []ScanResultDfActive
 	seenResults         = make(map[string]bool)
 	mu                  sync.Mutex
-	wg                  sync.WaitGroup
+	// globalStop          = make(chan struct{})
 )
 
 type ScanResultDfActive struct {
@@ -45,6 +45,7 @@ type ScanResultDfActive struct {
 }
 
 func DefaultScan() {
+	var wg sync.WaitGroup
 	// Get a list of all interfaces.
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -57,6 +58,25 @@ func DefaultScan() {
 		panic(err)
 	}
 
+	// if only send once per interface
+	for _, iface := range ifaces {
+		wg.Add(1)
+		// Start up a scan on each interface.
+		go func(iface net.Interface) {
+			defer wg.Done()
+
+			if err := scan(&iface, &devices); err != nil {
+				//log.Printf("interface %v: %v", iface.Name, err)
+			}
+
+		}(iface)
+	}
+	// Wait for all interfaces' scans to complete.  They'll try to run
+	// forever, but will stop on an error, so if we get past this Wait
+	// it means all attempts to write have failed.
+	wg.Wait()
+
+	/* if using globalStop
 	for _, iface := range ifaces {
 		wg.Add(1)
 		// Start up a scan on each interface.
@@ -71,6 +91,7 @@ func DefaultScan() {
 	// forever, but will stop on an error, so if we get past this Wait
 	// it means all attempts to write have failed.
 	wg.Wait()
+	*/
 }
 
 // scan scans an individual interface's local network for machines using ARP requests/replies.
@@ -126,33 +147,42 @@ func scan(iface *net.Interface, devices *[]pcap.Interface) error {
 	defer handle.Close()
 
 	// Start up a goroutine to read in packet data.
-	var once sync.Once
 	stop := make(chan struct{})
-	stopScan := func() {
-		close(stop)
-	}
-	go readARP(handle, iface, stop, &once, stopScan)
+	go readARP(handle, iface, stop)
+	defer close(stop)
 
-	for {
-		select {
-		case <-stop:
-			log.Printf("Stopping scan for interface %v", iface.Name)
-			wg.Done()
-			return nil
-		default:
-			if err := writeARP(handle, iface, addr); err != nil {
-				// log.Printf("error writing packets on %v: %v", iface.Name, err)
-				once.Do(stopScan)
-				return err
-			}
-		}
-		time.Sleep(10 * time.Second)
-		println("Scanning...")
+	// send packets only once
+	if err := writeARP(handle, iface, addr); err != nil {
+		//log.Printf("error writing packets on %v: %v", iface.Name, err)
+		return err
 	}
+
+	// give some time to collect ARP replies before exiting
+	time.Sleep(10 * time.Second)
+	return nil
+
+	// if using globalStop
+	// stop := make(chan struct{})
+	// go readARP(handle, iface, stop)
+	// defer close(stop)
+	// for {
+	// 	select {
+	// 	case <-globalStop:
+	// 		log.Printf("Stopping scan for interface %v", iface.Name)
+	// 		return nil
+	// 	default:
+	// 		if err := writeARP(handle, iface, addr); err != nil {
+	// 			// log.Printf("error writing packets on %v: %v", iface.Name, err)
+	// 			return err
+	// 		}
+	// 		time.Sleep(10 * time.Second)
+	// 	}
+	// }
+
 }
 
 // readARP reads in packets from the pcap handle, looking for ARP replies.
-func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}, once *sync.Once, stopScan func()) {
+func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 	src := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	in := src.Packets()
 
@@ -189,7 +219,8 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}, once
 			if seenResults[key] {
 				log.Printf("Duplicate detected for %s, stopping all scans...", key)
 				mu.Unlock()
-				once.Do(stopScan) // stop this goroutine
+				close(stop) // stop this goroutine
+				// close(globalStop)
 				return
 			}
 			seenResults[key] = true
@@ -197,8 +228,7 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}, once
 			mu.Unlock()
 
 			log.Printf("Date: %s | Time: %s | IP %v is at %v from interface: %v",
-				result.Date, result.Time, result.Dest_IP, result.Dest_Mac, result.Interface,
-			)
+				result.Date, result.Time, result.Dest_IP, result.Dest_Mac, result.Interface)
 		}
 	}
 }
