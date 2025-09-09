@@ -36,41 +36,14 @@ make
 ### Windows
 
 ```
-# Install Docker Desktop for Windows and WSL2
-
-# Inside WSL2, navigate to the directory containing the repository
-# Example
-cd /mnt/c/Users/%USERNAME%/Documents/
-
-# Create a new directory
-mkdir -p Github && cd Github
-
-# Update system
-sudo apt update -y
-
-# Install dependencies
-sudo apt install git gh make -y
-
-# Login to github
-gh auth login
-
-# Clone the repo
+# Clone the repo with github desktop
 git clone https://github.com/Naman1997/discovr.git
 
 # Go into the directory
 cd discovr
 
-# Get the nmap windows zip
-make get_nmap_win_zip
-
-# Open Windows Command Prompt(cmd) and navigate to the same directory
-cd C:\Users\%USERNAME%\Documents\Github\discovr\
-
-# Set the environment variables
-for /F %A in (.env) do SET %A
-
-# Build (from the same command prompt)
-go build -ldflags="-X 'github.com/Naman1997/discovr/internal.NmapVersion=%NMAP_VERSION%'"
+# Build the project
+./build.bat
 
 # Run the binary
 .\discovr.exe -h
