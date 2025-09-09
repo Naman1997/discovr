@@ -1,0 +1,28 @@
+@echo off
+setlocal enableextensions
+
+REM Always run from the script's own folder
+pushd "%~dp0"
+
+REM Load .env into environment
+for /F %%A in (.env) do set %%A
+
+REM Choose package path (root by default; use cmd\discovr if it exists)
+set "PKG=."
+if exist "cmd\discovr\main.go" set "PKG=cmd\discovr"
+
+echo Using package: %PKG%
+echo NMAP_VERSION=%NMAP_VERSION%
+
+REM Build (verbose so we see output)
+go build -v -ldflags="-X github.com/Naman1997/discovr/internal.NmapVersion=%NMAP_VERSION%" -o discovr.exe %PKG%
+echo Exit code: %ERRORLEVEL%
+
+if errorlevel 1 (
+  echo Build failed
+) else (
+  echo Build complete: discovr.exe
+)
+
+popd
+endlocal
