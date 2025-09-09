@@ -8,7 +8,6 @@ import (
 )
 
 func Export(filePath string, header []string, rows [][]string) error {
-	fmt.Println("\n")
 	if filepath.Ext(filePath) != ".csv" {
 		filePath = filePath + ".csv"
 		fmt.Println("Export path did not have .csv extension, saving as:", filePath)
@@ -66,14 +65,14 @@ func ActiveExport(path string, header []string, nmapScan bool) {
 	if nmapScan {
 		rows := make([][]string, len(active_results))
 		for i, r := range active_results {
-			rows[i] = []string{r.ID, r.Protocol, r.State, r.Service, r.Product}
+			rows[i] = []string{r.Port, r.Protocol, r.State, r.Service, r.Product}
 		}
 		Export(path, header, rows)
 	} else {
 		// for default scan
 		rows := make([][]string, len(defaultscan_results))
 		for i, r := range defaultscan_results {
-			rows[i] = []string{r.Date, r.Time, r.Interface, r.Dest_IP, r.Dest_Mac}
+			rows[i] = []string{r.Interface, r.Dest_IP, r.Dest_Mac}
 		}
 		Export(path, header, rows)
 		return

@@ -23,7 +23,7 @@ var NmapVersion string = "7.92"
 var active_results []ScanResultActive
 
 type ScanResultActive struct {
-	ID       string
+	Port     string
 	Protocol string
 	State    string
 	Service  string
@@ -116,7 +116,7 @@ func NmapScan(targets string, ports string, osDetection bool) {
 
 			// export SCRUM-94
 			result := ScanResultActive{
-				ID:       strconv.Itoa(int(port.ID)),
+				Port:     strconv.Itoa(int(port.ID)),
 				Protocol: port.Protocol,
 				State:    port.State.State,
 				Service:  port.Service.Name,
