@@ -46,10 +46,11 @@ func Export(filePath string, header []string, rows [][]string) error {
 }
 
 // Convert Passive results
-func PassiveExport(path string, header []string) {
+func PassiveExport(path string) {
 	if path == "" {
 		return
 	}
+	header := []string{"Source_IP", "Protocol", "Source_MAC", "Destination_Mac", "Ethernet_Type"}
 	rows := make([][]string, len(passive_results))
 	for i, r := range passive_results {
 		rows[i] = []string{r.SrcIP, r.Protocol, r.SrcMAC, r.DstMAC, r.EthernetType}
@@ -58,10 +59,11 @@ func PassiveExport(path string, header []string) {
 }
 
 // Convert Active results
-func ActiveExport(path string, header []string) {
+func ActiveExport(path string) {
 	if path == "" {
 		return
 	}
+	header := []string{"ID", "Protocol", "State", "Service", "Product"}
 	rows := make([][]string, len(active_results))
 	for i, r := range active_results {
 		rows[i] = []string{r.ID, r.Protocol, r.State, r.Service, r.Product}
