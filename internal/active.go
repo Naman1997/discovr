@@ -1,219 +1,240 @@
+// Copyright 2012 Google, Inc. All rights reserved.
+//
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file in the root of the source
+// tree.
+
+// arpscan implements ARP scanning of all interfaces' local networks using
+// gopacket and its subpackages.  This example shows, among other things:
+//   - Generating and sending packet data
+//   - Reading in packet data and interpreting it
+//   - Use of the 'pcap' subpackage for reading/writing
 package internal
 
 import (
-	"archive/zip"
-	"context"
+	"bytes"
+	"encoding/binary"
+	"errors"
 	"fmt"
-	"io"
 	"log"
-	"os"
-	"path/filepath"
-	"runtime"
-	"slices"
-	"strconv"
+	"net"
 	"strings"
+	"sync"
+	"time"
 
-	"github.com/Naman1997/discovr/assets"
-	"github.com/Ullaakut/nmap/v3"
-	osfamily "github.com/Ullaakut/nmap/v3/pkg/osfamilies"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 )
 
-var NmapVersion string
+var (
+	defaultscan_results []ScanResultDfActive
+	seenResults         = make(map[string]bool)
+	mu                  sync.Mutex
+)
 
-var active_results []ScanResultActive
-
-type ScanResultActive struct {
-	ID       string
-	Protocol string
-	State    string
-	Service  string
-	Product  string
+type ScanResultDfActive struct {
+	Interface string
+	Dest_IP   string
+	Dest_Mac  string
 }
 
-func ActiveScan(targets string, ports string, osDetection bool) {
-
-	// TODO: Use the system nmap if it is present
-	// import "os/exec"
-	// nmapPath, err = exec.LookPath("nmap")
-	// if err != nil {
-	// 	// extract nmap
-	// }
-
-	nmapDir, nmapPath := extractNmap()
-
-	// Keeping this around for debugging
-	// fmt.Printf(nmapPath)
-	// fmt.Println("")
-
-	// Configure the nmap scanner
-	scanner, err := createScanner(targets, nmapPath)
-	if ports == "" {
-		scanner.AddOptions(nmap.WithMostCommonPorts(1000))
-	} else {
-		scanner.AddOptions(nmap.WithPorts(ports))
-	}
-
-	// Only enable OS detection if user is running with elevated privs
-	if osDetection {
-		isAdmin := false
-		if runtime.GOOS == "windows" {
-			isAdmin = isWindowsAdmin()
-		} else {
-			// For Unix-like systems (Linux, macOS, etc.)
-			if os.Geteuid() == 0 {
-				isAdmin = true
-			}
-		}
-
-		if isAdmin {
-			scanner.AddOptions(nmap.WithOSDetection())
-			scanner.AddOptions(nmap.WithPrivileged())
-		} else {
-			log.Fatalf("Scan Failed: OS scan requires elevated privileges!")
-		}
-	}
-
-	result, warnings, err := scanner.Run()
-	if len(*warnings) > 0 {
-		log.Printf("run finished with warnings: %s\n", *warnings) // Warnings are non-critical errors from nmap.
-	}
-	if err != nil {
-		log.Fatalf("nmap scan failed: %v", err)
-	}
-
-	// TODO: Wait for SRUM-8 and implement the method to export this information to a csv file
-	// Use the results to get the OS and ports open
-	for _, host := range result.Hosts {
-		if len(host.Ports) == 0 || len(host.Addresses) == 0 {
-			continue
-		}
-
-		// Log host OS if OS detection is enabled
-		if len(host.OS.Matches) > 0 {
-			matchedHosts := []string{}
-			for _, match := range host.OS.Matches {
-				if !slices.Contains(matchedHosts, host.Addresses[0].Addr) {
-					for _, class := range match.Classes {
-						switch class.OSFamily() {
-						case osfamily.Linux:
-							fmt.Printf("Discovered host running Linux: %q\n", host.Addresses[0])
-							matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
-						case osfamily.Windows:
-							fmt.Printf("Discovered host running Windows: %q\n", host.Addresses[0])
-							matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
-						}
-					}
-				}
-			}
-		} else {
-			fmt.Printf("Discovered host: %q\n", host.Addresses[0])
-		}
-
-		for _, port := range host.Ports {
-			fmt.Printf("\tPort %d/%s %s %s %s\n", port.ID, port.Protocol, port.State, port.Service.Name, port.Service.Product)
-
-			// export SCRUM-94
-			result := ScanResultActive{
-				ID:       strconv.Itoa(int(port.ID)),
-				Protocol: port.Protocol,
-				State:    port.State.State,
-				Service:  port.Service.Name,
-				Product:  port.Service.Product,
-			}
-			active_results = append(active_results, result)
-		}
-	}
-
-	fmt.Printf("Nmap done: %d hosts up scanned in %.2f seconds\n", len(result.Hosts), result.Stats.Finished.Elapsed)
-
-	// Remove the dir containing nmap
-	defer os.RemoveAll(nmapDir)
-}
-
-func createScanner(targets string, nmapPath string) (*nmap.Scanner, error) {
-	return nmap.NewScanner(
-		context.Background(),
-		nmap.WithTargets(targets),
-		nmap.WithBinaryPath(nmapPath),
-		nmap.WithServiceInfo(),
-		nmap.WithUnprivileged(),
-	)
-}
-
-func extractNmap() (string, string) {
-	nmapBinaryName := "nmap"
-	nmapExeName := nmapBinaryName + ".exe"
-	nmapVersionedZip := "nmap-" + NmapVersion + "-win32.zip"
-	extractedFolderName := nmapBinaryName + "-" + NmapVersion
-
-	nmapWinZipFile, _ := assets.Assets.ReadFile(nmapVersionedZip)
-	tmpDir, _ := os.MkdirTemp("", "discovr-embedded-bin-*")
-	tmpPath := filepath.Join(tmpDir, nmapVersionedZip)
-	_ = os.WriteFile(tmpPath, nmapWinZipFile, 0644)
-
-	// Unzip and delete zip file
-	unzip(tmpDir, tmpPath)
-	_ = os.Remove(tmpDir + string(os.PathSeparator) + nmapVersionedZip)
-
-	// If linux or macos, copy the nmap binary to the extracted folder
-	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
-		nmapLinuxBinary, _ := assets.Assets.ReadFile(nmapBinaryName)
-		binPath := tmpDir + string(os.PathSeparator) + extractedFolderName + string(os.PathSeparator) + nmapBinaryName
-		tmpPath = filepath.Join(binPath)
-		_ = os.WriteFile(tmpPath, nmapLinuxBinary, 0755)
-		return tmpDir, binPath
-	}
-
-	return tmpDir, tmpDir + string(os.PathSeparator) + extractedFolderName + string(os.PathSeparator) + nmapExeName
-}
-
-func unzip(destination string, zipFilePath string) {
-	archive, err := zip.OpenReader(zipFilePath)
+func DefaultScan() {
+	var wg sync.WaitGroup
+	// Get a list of all interfaces.
+	ifaces, err := net.Interfaces()
 	if err != nil {
 		panic(err)
 	}
-	defer archive.Close()
 
-	for _, f := range archive.File {
-		filePath := filepath.Join(destination, f.Name)
+	// Get a list of all devices
+	devices, err := pcap.FindAllDevs()
+	if err != nil {
+		panic(err)
+	}
 
-		if !strings.HasPrefix(filePath, filepath.Clean(destination)+string(string(os.PathSeparator))) {
-			fmt.Println("invalid file path")
+	// For each interface scan the subnet range
+	for _, iface := range ifaces {
+		// TODO: Add a interface filter like this
+		// if (iface.Name == "virbr0") {
+		wg.Add(1)
+		// Start up a scan on each interface.
+		go func(iface net.Interface) {
+			defer wg.Done()
+
+			if err := scan(&iface, &devices); err != nil {
+				log.Printf("interface %v: %v", iface.Name, err)
+			}
+
+		}(iface)
+		// }
+	}
+	wg.Wait()
+
+	// TODO: Scan a cutom subnet range (ex: 192.168.0.0/28)
+}
+
+// scan scans an individual interface's local network for machines using ARP requests/replies.
+// scan loops forever, sending packets out regularly.  It returns an error if
+// it's ever unable to write a packet.
+func scan(iface *net.Interface, devices *[]pcap.Interface) error {
+
+	// We just look for IPv4 addresses, so try to find if the interface has one.
+	var addr *net.IPNet
+	if addrs, err := iface.Addrs(); err != nil {
+		return err
+	} else {
+		for _, a := range addrs {
+			if ipnet, ok := a.(*net.IPNet); ok {
+				if ip4 := ipnet.IP.To4(); ip4 != nil {
+					addr = &net.IPNet{
+						IP:   ip4,
+						Mask: ipnet.Mask[len(ipnet.Mask)-4:],
+					}
+					break
+				}
+			}
+		}
+	}
+	// Sanity-check that the interface has a good address.
+	if addr == nil {
+		return errors.New("no good IP network found")
+	} else if addr.IP[0] == 127 {
+		return errors.New("skipping localhost")
+	} else if addr.Mask[0] != 0xff || addr.Mask[1] != 0xff {
+		return errors.New("mask means network is too large")
+	}
+	log.Printf("Using network range %v for interface %v", addr, iface.Name)
+
+	// Try to find a match between device and interface
+	var deviceName string
+	for _, d := range *devices {
+		if strings.Contains(fmt.Sprint(d.Addresses), fmt.Sprint(addr.IP)) {
+			deviceName = d.Name
+		}
+	}
+
+	if deviceName == "" {
+		return fmt.Errorf("cannot find the corresponding device for the interface %s", iface.Name)
+	}
+
+	// Open up a pcap handle for packet reads/writes.
+	handle, err := pcap.OpenLive(deviceName, 65536, true, pcap.BlockForever)
+	if err != nil {
+		return err
+	}
+	defer handle.Close()
+
+	// Start up a goroutine to read in packet data.
+	stop := make(chan struct{})
+	go readARP(handle, iface, stop)
+	defer close(stop)
+
+	// send packets only once
+	if err := writeARP(handle, iface, addr); err != nil {
+		//log.Printf("error writing packets on %v: %v", iface.Name, err)
+		return err
+	}
+
+	// give some time to collect ARP replies before exiting
+	time.Sleep(10 * time.Second)
+	return nil
+}
+
+// readARP reads in packets from the pcap handle, looking for ARP replies.
+func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
+	src := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
+	in := src.Packets()
+
+	for {
+		var packet gopacket.Packet
+		select {
+		case <-stop:
 			return
-		}
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(filePath, os.ModePerm)
-			continue
-		}
+		case packet = <-in:
+			arpLayer := packet.Layer(layers.LayerTypeARP)
+			if arpLayer == nil {
+				continue
+			}
+			arp := arpLayer.(*layers.ARP)
 
-		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
-			panic(err)
-		}
+			if arp.Operation != layers.ARPReply || bytes.Equal([]byte(iface.HardwareAddr), arp.SourceHwAddress) {
+				continue
+			}
 
-		dstFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-		if err != nil {
-			panic(err)
-		}
+			result := ScanResultDfActive{
+				Interface: iface.Name,
+				Dest_IP:   net.IP(arp.SourceProtAddress).String(),
+				Dest_Mac:  net.HardwareAddr(arp.SourceHwAddress).String(),
+			}
 
-		fileInArchive, err := f.Open()
-		if err != nil {
-			panic(err)
-		}
+			key := result.Interface + "_" + result.Dest_IP + "_" + result.Dest_Mac
+			mu.Lock()
+			if seenResults[key] {
+				log.Printf("Duplicate detected for %s, stopping all scans...", key)
+				mu.Unlock()
+				close(stop) // stop this goroutine
+				// close(globalStop)
+				return
+			}
+			seenResults[key] = true
+			defaultscan_results = append(defaultscan_results, result)
+			mu.Unlock()
 
-		if _, err := io.Copy(dstFile, fileInArchive); err != nil {
-			panic(err)
+			log.Printf("IP %v is at %v from interface: %v",
+				result.Dest_IP, result.Dest_Mac, result.Interface)
 		}
-
-		dstFile.Close()
-		fileInArchive.Close()
 	}
 }
 
-// Source: https://gist.github.com/jerblack/d0eb182cc5a1c1d92d92a4c4fcc416c6
-func isWindowsAdmin() bool {
-	_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
-	if err != nil {
-		return false
+// writeARP writes an ARP request for each address on our local network to the
+// pcap handle.
+func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet) error {
+	// Set up all the layers' fields we can.
+	eth := layers.Ethernet{
+		SrcMAC:       iface.HardwareAddr,
+		DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		EthernetType: layers.EthernetTypeARP,
 	}
-	return true
+	arp := layers.ARP{
+		AddrType:          layers.LinkTypeEthernet,
+		Protocol:          layers.EthernetTypeIPv4,
+		HwAddressSize:     6,
+		ProtAddressSize:   4,
+		Operation:         layers.ARPRequest,
+		SourceHwAddress:   []byte(iface.HardwareAddr),
+		SourceProtAddress: []byte(addr.IP),
+		DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
+	}
+	// Set up buffer and options for serialization.
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	// Send one packet for every address.
+	for _, ip := range ips(addr) {
+		arp.DstProtAddress = []byte(ip)
+		gopacket.SerializeLayers(buf, opts, &eth, &arp)
+		if err := handle.WritePacketData(buf.Bytes()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ips is a simple and not very good method for getting all IPv4 addresses from a
+// net.IPNet.  It returns all IPs it can over the channel it sends back, closing
+// the channel when done.
+func ips(n *net.IPNet) (out []net.IP) {
+	num := binary.BigEndian.Uint32([]byte(n.IP))
+	mask := binary.BigEndian.Uint32([]byte(n.Mask))
+	network := num & mask
+	broadcast := network | ^mask
+	for network++; network < broadcast; network++ {
+		var buf [4]byte
+		binary.BigEndian.PutUint32(buf[:], network)
+		out = append(out, net.IP(buf[:]))
+	}
+	return
 }
