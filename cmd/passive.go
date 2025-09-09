@@ -24,7 +24,7 @@ var passiveCmd = &cobra.Command{
 }
 
 func init() {
-	localCmd.AddCommand(passiveCmd)
+	rootCmd.AddCommand(passiveCmd)
 	passiveCmd.Flags().StringVarP(&Interface, "interface", "i", "any", "Interface to read packets from")
 	passiveCmd.Flags().IntVarP(&ScanTime, "duration", "d", 10, "Number of seconds to run the scan")
 	passiveCmd.Flags().StringVarP(&PathPassive, "export", "e", "", "Export results to CSV file")
