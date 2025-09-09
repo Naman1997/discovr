@@ -20,6 +20,7 @@ var activeCmd = &cobra.Command{
 	},
 }
 
+// Initialize the command and its flags
 func init() {
 	rootCmd.AddCommand(activeCmd)
 	activeCmd.Flags().StringVarP(&ExportPathActive, "export", "e", "", "Export results to CSV file")
