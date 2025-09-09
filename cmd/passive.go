@@ -23,7 +23,6 @@ var passiveCmd = &cobra.Command{
 	},
 }
 
-// Initialize the command and its flags
 func init() {
 	rootCmd.AddCommand(passiveCmd)
 	passiveCmd.Flags().StringVarP(&Interface, "interface", "i", "any", "Interface to read packets from")

@@ -23,7 +23,6 @@ var nmapCmd = &cobra.Command{
 	},
 }
 
-// Initialize the command and its flags
 func init() {
 	rootCmd.AddCommand(nmapCmd)
 	nmapCmd.Flags().StringVarP(&Target, "target", "t", "127.0.0.1", "Target CIDR range or IP address to scan")
