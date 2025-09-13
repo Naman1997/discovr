@@ -24,6 +24,9 @@ jobs:
       - name: Run go fmt
         run: go fmt ./...
 
+      - name: Run go mod tidy
+        run: go mod tidy
+
       - name: Check for changes
         id: git_status
         run: |
@@ -33,5 +36,5 @@ jobs:
         if: steps.git_status.outputs.changes == 'true'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: go fmt auto-format"
+          commit_message: "chore: go auto-format"
           branch: ${{ github.head_ref || github.ref_name }} # Commit to the current branch
