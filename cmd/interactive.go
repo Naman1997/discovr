@@ -1,23 +1,23 @@
 package cmd
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"runtime"
 	"strconv"
 
 	"github.com/Naman1997/discovr/internal"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/charmbracelet/huh"
 	"github.com/google/gopacket/pcap"
 )
 
 var (
-	// TODO: Fix var names
-	Scantype        string
-	SelectInterface string
-	Exportpath      string
+	scantype        string
+	selectinterface string
+	exportpath      string
 	duration        int
 	durationStr     string
 	ip              string
@@ -27,27 +27,17 @@ var (
 	regionselect    string
 )
 
-const awsIPRangesURL = "https://ip-ranges.amazonaws.com/ip-ranges.json"
-
 type Adapter struct {
 	transport   string
 	description string
 }
 
-type awsIPRanges struct {
-	Prefixes []struct {
-		Region string `json:"region"`
-	} `json:"prefixes"`
-}
-
-func CheckOsPathPlaceholder() string {
+func GetOsPathPlaceholder() string {
 	switch runtime.GOOS {
 	case "windows":
-		placeholder = "default = no result | output.csv | C:\\Output\\Nmap.csv"
-	case "linux":
-		placeholder = "default = no result | ./Nmap.csv"
+		placeholder = "default = no result | output.csv | C:\\Output\\output.csv"
 	default:
-		placeholder = "default = no result"
+		placeholder = "default = no result | ./output.csv"
 	}
 	return placeholder
 }
@@ -72,29 +62,19 @@ func GetAdapters() ([]Adapter, error) {
 }
 
 func FetchAWSRegion() ([]string, error) {
-	resp, err := http.Get(awsIPRangesURL)
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch AWS ip-ranges.json: %w", err)
+		return nil, err
 	}
-	defer resp.Body.Close()
-
-	var data awsIPRanges
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON: %w", err)
+	svc := ec2.NewFromConfig(cfg)
+	result, err := svc.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	if err != nil {
+		return nil, err
 	}
-
-	regionSet := make(map[string]struct{})
-	for _, p := range data.Prefixes {
-		if p.Region != "" {
-			regionSet[p.Region] = struct{}{}
-		}
-	}
-
 	var regions []string
-	for region := range regionSet {
-		regions = append(regions, region)
+	for _, region := range result.Regions {
+		regions = append(regions, *region.RegionName)
 	}
-
 	return regions, nil
 }
 
@@ -110,30 +90,30 @@ func RunTui() {
 			huh.NewSelect[string]().
 				Title("Pick a Scan Option").
 				Options(huh.NewOptions("Active Scan", "Passive Scan", "Nmap Scan", "AWS Cloud Scan", "Azure Cloud Scan")...).
-				Value(&Scantype),
+				Value(&scantype),
 		),
 	)
 	errhandle(form)
 
-	switch {
-	case Scantype == "Active Scan":
-		pathplaceholder := CheckOsPathPlaceholder()
+	switch scantype {
+	case "Active Scan":
+		pathplaceholder := GetOsPathPlaceholder()
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
-					Value(&Exportpath),
+					Value(&exportpath),
 			),
 		)
 		errhandle(form)
 		internal.DefaultScan()
 		header := []string{"Interface", "Dest_IP", "Dest_Mac"} //TODO: remove header for next ticket
-		internal.ActiveExport(Exportpath, header, false)
+		internal.ActiveExport(exportpath, header, false)
 
-	case Scantype == "Passive Scan":
+	case "Passive Scan":
 		var options []huh.Option[string]
-		pathplaceholder := CheckOsPathPlaceholder()
+		pathplaceholder := GetOsPathPlaceholder()
 		adapters, err := GetAdapters()
 		if err != nil {
 			fmt.Println("Error:", err)
@@ -156,7 +136,7 @@ func RunTui() {
 				huh.NewSelect[string]().
 					Title("Select an option").
 					Options(options...).
-					Value(&SelectInterface),
+					Value(&selectinterface),
 				huh.NewInput().
 					Title("Enter a duration (sec)").
 					Placeholder("default = 20").
@@ -171,7 +151,7 @@ func RunTui() {
 				huh.NewInput().
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
-					Value(&Exportpath),
+					Value(&exportpath),
 			),
 		)
 		errhandle(form)
@@ -180,12 +160,12 @@ func RunTui() {
 		} else {
 			duration, _ = strconv.Atoi(durationStr)
 		}
-		internal.PassiveScan(SelectInterface, duration)
+		internal.PassiveScan(selectinterface, duration)
 		header := []string{"Source_IP", "Protocol", "Source_MAC", "Destination_Mac", "Ethernet_Type"} //TODO: remove header
 		internal.PassiveExport(PathPassive, header)
 
-	case Scantype == "Nmap Scan":
-		pathplaceholder := CheckOsPathPlaceholder()
+	case "Nmap Scan":
+		pathplaceholder := GetOsPathPlaceholder()
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
@@ -199,13 +179,10 @@ func RunTui() {
 				huh.NewConfirm().
 					Title("OS detection:").
 					Value(&osdet),
-
-				// TODO: add flag for -Pn scan here??
-
 				huh.NewInput().
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
-					Value(&Exportpath),
+					Value(&exportpath),
 			),
 		)
 		errhandle(form)
@@ -214,14 +191,14 @@ func RunTui() {
 		}
 		internal.NmapScan(ip, ports, osdet)
 		header := []string{"Port", "Protocol", "State", "Service", "Product"}
-		internal.ActiveExport(Exportpath, header, true)
+		internal.ActiveExport(exportpath, header, true)
 
-	case Scantype == "Azure Cloud Scan":
+	case "Azure Cloud Scan":
 		fmt.Print("Azure Called")
 
-	case Scantype == "AWS Cloud Scan":
-		// Region, Config, Credential, Profile, export path, TODO: Do AWS scan internal.AwsScan(Region, Config, Credential, Profile)
+	case "AWS Cloud Scan":
 		var regionOptions []huh.Option[string]
+		pathplaceholder := GetOsPathPlaceholder()
 		region, err := FetchAWSRegion()
 		if err != nil {
 			fmt.Printf("%v", err)
@@ -238,8 +215,15 @@ func RunTui() {
 					Title("Select an AWS region").
 					Options(regionOptions...).
 					Value(&regionselect),
+				huh.NewInput().
+					Title("Enter an export path:").
+					Placeholder(pathplaceholder).
+					Value(&exportpath),
 			),
 		)
 		errhandle(form)
+		internal.AwsScan(regionselect, []string{}, []string{}, "")
+		header := []string{"InstanceId", "PublicIp", "PrivateIPs", "MacAddress", "VpcId", "SubnetId", "Hostname", "Region"}
+		internal.AwsExport(exportpath, header)
 	}
 }
