@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"runtime"
+
 	"github.com/Naman1997/discovr/internal"
 	"github.com/spf13/cobra"
-	"runtime"
 )
 
 var (
@@ -21,8 +22,7 @@ var awsCmd = &cobra.Command{
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.AwsScan(Region, Config, Credential, Profile)
-		header := []string{"InstanceId", "PublicIp", "PrivateIPs", "MacAddress", "VpcId", "SubnetId", "Hostname", "Region"}
-		internal.AwsExport(AwsCsvExportPath, header)
+		internal.AwsExport(AwsCsvExportPath)
 	},
 }
 

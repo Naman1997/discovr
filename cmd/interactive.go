@@ -108,8 +108,7 @@ func RunTui() {
 		)
 		errhandle(form)
 		internal.DefaultScan()
-		header := []string{"Interface", "Dest_IP", "Dest_Mac"} //TODO: remove header for next ticket
-		internal.ActiveExport(exportpath, header, false)
+		internal.ActiveExport(exportpath, false)
 
 	case "Passive Scan":
 		var options []huh.Option[string]
@@ -161,8 +160,7 @@ func RunTui() {
 			duration, _ = strconv.Atoi(durationStr)
 		}
 		internal.PassiveScan(selectinterface, duration)
-		header := []string{"Source_IP", "Protocol", "Source_MAC", "Destination_Mac", "Ethernet_Type"} //TODO: remove header
-		internal.PassiveExport(PathPassive, header)
+		internal.PassiveExport(exportpath)
 
 	case "Nmap Scan":
 		pathplaceholder := GetOsPathPlaceholder()
@@ -190,8 +188,7 @@ func RunTui() {
 			ip = "127.0.0.1"
 		}
 		internal.NmapScan(ip, ports, osdet)
-		header := []string{"Port", "Protocol", "State", "Service", "Product"}
-		internal.ActiveExport(exportpath, header, true)
+		internal.ActiveExport(exportpath, true)
 
 	case "Azure Cloud Scan":
 		fmt.Print("Azure Called")
@@ -223,7 +220,6 @@ func RunTui() {
 		)
 		errhandle(form)
 		internal.AwsScan(regionselect, []string{}, []string{}, "")
-		header := []string{"InstanceId", "PublicIp", "PrivateIPs", "MacAddress", "VpcId", "SubnetId", "Hostname", "Region"}
-		internal.AwsExport(exportpath, header)
+		internal.AwsExport(exportpath)
 	}
 }
