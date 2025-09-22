@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"runtime"
 	"strconv"
 
@@ -25,6 +26,7 @@ var (
 	osdet           bool
 	placeholder     string
 	regionselect    string
+	subID           string
 )
 
 type Adapter struct {
@@ -82,6 +84,18 @@ func errhandle(form *huh.Form) {
 	if err := form.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+var guidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`)
+
+func validateSubscriptionID(input string) error {
+	if input == "" {
+		return nil
+	}
+	if !guidRegex.MatchString(input) {
+		return fmt.Errorf("invalid subscription ID format")
+	}
+	return nil
 }
 
 func RunTui() {
@@ -191,7 +205,27 @@ func RunTui() {
 		internal.ActiveExport(exportpath, true)
 
 	case "Azure Cloud Scan":
-		fmt.Print("Azure Called")
+		pathplaceholder := GetOsPathPlaceholder()
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title("Enter Subscription ID").
+					Description("Use AzureCLI command 'az account list -o table' to list subscription ID\nor leave empty for default subscriptionID\n").
+					Placeholder("00000000-0000-0000-0000-000000000000").
+					Value(&subID).
+					Validate(validateSubscriptionID),
+				huh.NewInput().
+					Title("Enter an export path:").
+					Placeholder(pathplaceholder).
+					Value(&exportpath),
+			),
+		)
+		errhandle(form)
+		if subID == "" {
+			subID = "default"
+		}
+		internal.Azurescan(subID)
+		internal.AzureExport(exportpath)
 
 	case "AWS Cloud Scan":
 		var regionOptions []huh.Option[string]
