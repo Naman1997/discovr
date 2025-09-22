@@ -42,6 +42,7 @@ type AzureProfile struct {
 	} `json:"subscriptions"`
 }
 
+// reads azureProfile.json and outputs default SubscriptionID
 func GetDefaultSubscription() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -54,7 +55,6 @@ func GetDefaultSubscription() (string, error) {
 		return "", err
 	}
 
-	// Remove BOM or any extra whitespace
 	dataStr := strings.TrimSpace(strings.TrimPrefix(string(data), "\uFEFF"))
 
 	var profile AzureProfile
