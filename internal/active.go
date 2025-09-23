@@ -39,47 +39,55 @@ type ScanResultDfActive struct {
 	Dest_Mac  string
 }
 
-func DefaultScan() {
+// DefaultScan example: you can set desiredCIDR to "" to use interface mask,
+// or "192.168.0.0/28" to request scanning that CIDR (must be inside interface network).
+func DefaultScan(networkInterface string, targetCIDR string) {
+	// var networkInterface string = "Wi-Fi"
 	var wg sync.WaitGroup
-	// Get a list of all interfaces.
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		panic(err)
-	}
 
-	// Get a list of all devices
+	// user-specified target CIDR; set to "" to use interface default
+	// desiredCIDR := "192.168.0.16/28" // <-- change this or set to ""
+	// desiredCIDR := ""
+	// Get a list of all device
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
 		panic(err)
 	}
 
-	// For each interface scan the subnet range
-	for _, iface := range ifaces {
-		// TODO: Add a interface filter like this
-		// if (iface.Name == "virbr0") {
+	if networkInterface == "any" {
+		ifaces, err := net.Interfaces()
+		if err != nil {
+			panic(err)
+		}
+		for _, iface := range ifaces {
+			wg.Add(1)
+			go func(iface net.Interface) {
+				defer wg.Done()
+				if err := scan(&iface, &devices, targetCIDR); err != nil {
+					log.Printf("interface %v: %v", iface.Name, err)
+				}
+			}(iface)
+		}
+	} else {
+		netiface, err := net.InterfaceByName(networkInterface)
+		if err != nil {
+			panic(err)
+		}
 		wg.Add(1)
-		// Start up a scan on each interface.
-		go func(iface net.Interface) {
+		go func(netiface net.Interface) {
 			defer wg.Done()
-
-			if err := scan(&iface, &devices); err != nil {
-				log.Printf("interface %v: %v", iface.Name, err)
+			if err := scan(&netiface, &devices, targetCIDR); err != nil {
+				log.Printf("interface %v: %v", netiface.Name, err)
 			}
-
-		}(iface)
-		// }
+		}(*netiface)
 	}
 	wg.Wait()
-
-	// TODO: Scan a cutom subnet range (ex: 192.168.0.0/28)
 }
 
-// scan scans an individual interface's local network for machines using ARP requests/replies.
-// scan loops forever, sending packets out regularly.  It returns an error if
-// it's ever unable to write a packet.
-func scan(iface *net.Interface, devices *[]pcap.Interface) error {
+// scan now accepts targetCIDR. If targetCIDR == "" it uses interface network as before.
+func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string) error {
 
-	// We just look for IPv4 addresses, so try to find if the interface has one.
+	// find interface IPv4 (same as before)
 	var addr *net.IPNet
 	if addrs, err := iface.Addrs(); err != nil {
 		return err
@@ -96,7 +104,7 @@ func scan(iface *net.Interface, devices *[]pcap.Interface) error {
 			}
 		}
 	}
-	// Sanity-check that the interface has a good address.
+	// addr is connected IPv4 network from interface
 	if addr == nil {
 		return errors.New("no good IP network found")
 	} else if addr.IP[0] == 127 {
@@ -106,37 +114,52 @@ func scan(iface *net.Interface, devices *[]pcap.Interface) error {
 	}
 	log.Printf("Using network range %v for interface %v", addr, iface.Name)
 
-	// Try to find a match between device and interface
+	// If user supplied a targetCIDR, parse and verify it is inside addr.
+	var scanNet *net.IPNet
+
+	if targetCIDR != "" {
+		_, tNet, err := net.ParseCIDR(targetCIDR)
+		if err != nil {
+			return fmt.Errorf("invalid target CIDR %q: %v", targetCIDR, err)
+		}
+		// align target network IP to its network base
+		tNet = alignToNetwork(tNet)
+		if !isSubnetWithin(addr, tNet) {
+			return fmt.Errorf("requested CIDR %v is outside connected interface network %v", tNet.String(), addr.String())
+		}
+		scanNet = tNet
+	} else {
+		// use interface network (align IP to network base)
+		scanNet = addr
+	}
+
+	// find device name (same)
 	var deviceName string
 	for _, d := range *devices {
 		if strings.Contains(fmt.Sprint(d.Addresses), fmt.Sprint(addr.IP)) {
 			deviceName = d.Name
 		}
 	}
-
 	if deviceName == "" {
 		return fmt.Errorf("cannot find the corresponding device for the interface %s", iface.Name)
 	}
 
-	// Open up a pcap handle for packet reads/writes.
 	handle, err := pcap.OpenLive(deviceName, 65536, true, pcap.BlockForever)
 	if err != nil {
 		return err
 	}
 	defer handle.Close()
 
-	// Start up a goroutine to read in packet data.
+	// Start read goroutine with stop channel
 	stop := make(chan struct{})
 	go readARP(handle, iface, stop)
 	defer close(stop)
 
-	// send packets only once
-	if err := writeARP(handle, iface, addr); err != nil {
-		//log.Printf("error writing packets on %v: %v", iface.Name, err)
+	// write ARP only for scanNet (which may be the requested /28, /30, or the full iface /24)
+	if err := writeARP(handle, iface, scanNet, addr); err != nil {
 		return err
 	}
 
-	// give some time to collect ARP replies before exiting
 	time.Sleep(10 * time.Second)
 	return nil
 }
@@ -189,7 +212,7 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 
 // writeARP writes an ARP request for each address on our local network to the
 // pcap handle.
-func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet) error {
+func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet, intAddr *net.IPNet) error {
 	// Set up all the layers' fields we can.
 	eth := layers.Ethernet{
 		SrcMAC:       iface.HardwareAddr,
@@ -213,7 +236,7 @@ func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet) error 
 		ComputeChecksums: true,
 	}
 	// Send one packet for every address.
-	for _, ip := range ips(addr) {
+	for _, ip := range ips(addr, intAddr) {
 		arp.DstProtAddress = []byte(ip)
 		gopacket.SerializeLayers(buf, opts, &eth, &arp)
 		if err := handle.WritePacketData(buf.Bytes()); err != nil {
@@ -226,15 +249,66 @@ func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet) error 
 // ips is a simple and not very good method for getting all IPv4 addresses from a
 // net.IPNet.  It returns all IPs it can over the channel it sends back, closing
 // the channel when done.
-func ips(n *net.IPNet) (out []net.IP) {
+func ips(n *net.IPNet, o *net.IPNet) (out []net.IP) {
+
+	// n and o are different
+
+	orinum := binary.BigEndian.Uint32([]byte(o.IP))
+	orimask := binary.BigEndian.Uint32([]byte(o.Mask))
+	oribroadcast := orinum | ^orimask
+	orinetwork := orinum & orimask
+
 	num := binary.BigEndian.Uint32([]byte(n.IP))
 	mask := binary.BigEndian.Uint32([]byte(n.Mask))
 	network := num & mask
 	broadcast := network | ^mask
-	for network++; network < broadcast; network++ {
+
+	for ip := network; ip <= broadcast; ip++ {
+		if ip == orinetwork || ip == oribroadcast {
+			continue // skip network and broadcast addresses
+		}
 		var buf [4]byte
-		binary.BigEndian.PutUint32(buf[:], network)
+		binary.BigEndian.PutUint32(buf[:], ip)
 		out = append(out, net.IP(buf[:]))
 	}
+
 	return
+}
+
+// ipToUint32 converts a 4-byte IPv4 to uint32.
+func ipToUint32(ip net.IP) uint32 {
+	return binary.BigEndian.Uint32([]byte(ip.To4()))
+}
+
+// networkRange returns network and broadcast (uint32) for a net.IPNet
+func networkRange(n *net.IPNet) (network uint32, broadcast uint32) {
+	num := ipToUint32(n.IP)
+	mask := ipToUint32(net.IP(n.Mask)) // n.Mask is 4 bytes for IPv4
+	network = num & mask
+	broadcast = network | ^mask
+	return
+}
+
+// isSubnetWithin returns true if targetNet range is fully inside ifaceNet range.
+func isSubnetWithin(ifaceNet, targetNet *net.IPNet) bool {
+	if ifaceNet == nil || targetNet == nil {
+		return false
+	}
+	if ifaceNet.IP.To4() == nil || targetNet.IP.To4() == nil {
+		return false
+	}
+	ifaceNetStart, ifaceNetEnd := networkRange(ifaceNet)
+	targetStart, targetEnd := networkRange(targetNet)
+	// target start must be >= iface start and target end <= iface end
+	return targetStart >= ifaceNetStart && targetEnd <= ifaceNetEnd
+}
+
+// alignToNetwork returns targetNet with IP aligned to its network address (useful after parsing).
+func alignToNetwork(n *net.IPNet) *net.IPNet {
+	if n == nil {
+		return nil
+	}
+	mask := n.Mask
+	ip := n.IP.Mask(mask)
+	return &net.IPNet{IP: ip, Mask: mask}
 }

@@ -25,6 +25,8 @@ var (
 	osdet           bool
 	placeholder     string
 	regionselect    string
+	netInterface    string
+	tCIDR           string
 )
 
 type Adapter struct {
@@ -107,7 +109,7 @@ func RunTui() {
 			),
 		)
 		errhandle(form)
-		internal.DefaultScan()
+		internal.DefaultScan(netInterface, tCIDR)
 		internal.ActiveExport(exportpath, false)
 
 	case "Passive Scan":
