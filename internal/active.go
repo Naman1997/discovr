@@ -112,7 +112,6 @@ func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string) er
 	} else if addr.Mask[0] != 0xff || addr.Mask[1] != 0xff {
 		return errors.New("mask means network is too large")
 	}
-	log.Printf("Using network range %v for interface %v", addr, iface.Name)
 
 	// If user supplied a targetCIDR, parse and verify it is inside addr.
 	var scanNet *net.IPNet
@@ -132,6 +131,8 @@ func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string) er
 		// use interface network (align IP to network base)
 		scanNet = addr
 	}
+
+	log.Printf("Using network range %v for interface %v", scanNet, iface.Name)
 
 	// find device name (same)
 	var deviceName string
@@ -194,14 +195,14 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 			key := result.Interface + "_" + result.Dest_IP + "_" + result.Dest_Mac
 			mu.Lock()
 			if seenResults[key] {
-				log.Printf("Duplicate detected for %s, stopping all scans...", key)
+				log.Printf("Duplicate detected for %s", key)
 				mu.Unlock()
-				close(stop) // stop this goroutine
-				// close(globalStop)
 				return
+			} else {
+				seenResults[key] = true
+				defaultscan_results = append(defaultscan_results, result)
 			}
-			seenResults[key] = true
-			defaultscan_results = append(defaultscan_results, result)
+
 			mu.Unlock()
 
 			log.Printf("IP %v is at %v from interface: %v",
