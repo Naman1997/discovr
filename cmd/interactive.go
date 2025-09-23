@@ -209,9 +209,9 @@ func RunTui() {
 		form := huh.NewForm(
 			huh.NewGroup(
 				huh.NewInput().
-					Title("Enter Subscription ID").
+					Title("Enter Subscription ID:").
 					Description("Use AzureCLI command 'az account list -o table' to list subscription ID\nor leave empty for default subscriptionID\n").
-					Placeholder("00000000-0000-0000-0000-000000000000").
+					Placeholder("00000000-0000-0000-0000-000000000000 | default = default subscriptionID").
 					Value(&subID).
 					Validate(validateSubscriptionID),
 				huh.NewInput().
