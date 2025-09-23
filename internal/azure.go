@@ -77,7 +77,7 @@ func Azurescan(subIdInput string) {
 			log.Fatal(err)
 		}
 	} else {
-		subID = strings.TrimSpace(subIdInput)
+		subID = subIdInput
 	}
 
 	fmt.Println("----------------------------------------")
@@ -101,7 +101,7 @@ func Azurescan(subIdInput string) {
 			log.Fatalf("Subscription ID %v does not Exist: %v", subID, err)
 		}
 	} else {
-		log.Fatalf("Subscription %s is invalid or contains no VMs", subID)
+		log.Fatalf("Subscription %s contains no VMs", subID)
 	}
 
 	nicClient, err := armnetwork.NewInterfacesClient(subID, cred, nil)
@@ -131,45 +131,55 @@ func Azurescan(subIdInput string) {
 				ResourceGroup: vmID.ResourceGroupName,
 			}
 
-			var (
-				macs  []string
-				nics  []string
-				ips   []string
-				ip    string
-				pips  []string
-				snets []string
-				vnets []string
-			)
+			type AzureVMData struct {
+				IP       string
+				IP_Mask  []string
+				NIC      []string
+				MAC      []string
+				Subnet   []string
+				Vnet     []string
+				PublicIP []string
+			}
+
+			var vmInfo AzureVMData
 
 			// NICs
 			for _, nicRef := range vm.Properties.NetworkProfile.NetworkInterfaces {
 				nicID, _ := arm.ParseResourceID(*nicRef.ID)
-				nic, _ := nicClient.Get(ctx, nicID.ResourceGroupName, nicID.Name, nil)
-
+				nic, err := nicClient.Get(ctx, nicID.ResourceGroupName, nicID.Name, nil)
+				if err != nil {
+					log.Fatal(err)
+				}
 				if nic.Name != nil {
-					nics = append(nics, nicID.Name)
+					vmInfo.NIC = append(vmInfo.NIC, nicID.Name)
 				}
 				if nic.Properties.MacAddress != nil {
-					macs = append(macs, *nic.Properties.MacAddress)
+					vmInfo.MAC = append(vmInfo.MAC, *nic.Properties.MacAddress)
 				}
 
 				// IP configs
 				for _, ipConf := range nic.Properties.IPConfigurations {
 					if ipConf.Properties.PrivateIPAddress != nil {
 						// ips = append(ips, *ipConf.Properties.PrivateIPAddress)
-						ip = *ipConf.Properties.PrivateIPAddress
+						vmInfo.IP = *ipConf.Properties.PrivateIPAddress
 					}
 
 					// Subnets and VNets
 					if ipConf.Properties.Subnet != nil {
 						subnetID, _ := arm.ParseResourceID(*ipConf.Properties.Subnet.ID)
 						if subnetID.Parent.Parent.Name != "" {
-							vnets = append(vnets, subnetID.Parent.Name)
-							snets = append(snets, subnetID.Name)
+							vmInfo.Vnet = append(vmInfo.Vnet, subnetID.Parent.Name)
 						}
-						subnetResp, err := subnetClient.Get(ctx, subnetID.ResourceGroupName, subnetID.Parent.Name, subnetID.Name, nil)
+						if subnetID.Name != "" {
+							vmInfo.Subnet = append(vmInfo.Subnet, subnetID.Name)
+						}
+
+						subnetResp, _ := subnetClient.Get(ctx, subnetID.ResourceGroupName, subnetID.Parent.Name, subnetID.Name, nil)
+						if err != nil {
+							log.Fatal(err)
+						}
 						cidr := "unknown" // default
-						if err == nil && subnetResp.Properties != nil {
+						if subnetResp.Properties != nil {
 							if len(subnetResp.Properties.AddressPrefixes) > 0 && subnetResp.Properties.AddressPrefixes[0] != nil {
 								cidr = *subnetResp.Properties.AddressPrefixes[0]
 							} else if subnetResp.Properties.AddressPrefix != nil {
@@ -186,25 +196,28 @@ func Azurescan(subIdInput string) {
 							}
 						}
 						// joining mask with IP and appending to IPs slice
-						ips = append(ips, fmt.Sprintf("%s%s", ip, mask))
+						vmInfo.IP_Mask = append(vmInfo.IP_Mask, fmt.Sprintf("%s%s", vmInfo.IP, mask))
 					}
 					// Public IP
 					if ipConf.Properties.PublicIPAddress != nil {
 						pipID, _ := arm.ParseResourceID(*ipConf.Properties.PublicIPAddress.ID)
 						pip, _ := pipClient.Get(ctx, pipID.ResourceGroupName, pipID.Name, nil)
+						if err != nil {
+							log.Fatal(err)
+						}
 						if err == nil && pip.Properties.IPAddress != nil {
-							pips = append(pips, *pip.Properties.IPAddress)
+							vmInfo.PublicIP = append(vmInfo.PublicIP, *pip.Properties.IPAddress)
 						}
 					}
 				}
 			}
 
-			result.NIC = strings.Join(nics, ", ")
-			result.MAC = strings.Join(macs, ", ")
-			result.PrivateIP = strings.Join(ips, ", ")
-			result.Subnet = strings.Join(snets, ", ")
-			result.Vnet = strings.Join(vnets, ", ")
-			result.PublicIP = strings.Join(pips, ", ")
+			result.NIC = strings.Join(vmInfo.NIC, ", ")
+			result.MAC = strings.Join(vmInfo.MAC, ", ")
+			result.PrivateIP = strings.Join(vmInfo.IP_Mask, ", ")
+			result.Subnet = strings.Join(vmInfo.Subnet, ", ")
+			result.Vnet = strings.Join(vmInfo.Vnet, ", ")
+			result.PublicIP = strings.Join(vmInfo.PublicIP, ", ")
 
 			fmt.Printf("\nName: %s\n", result.Name)
 			fmt.Printf("ID: %s\n", result.UniqueID)
