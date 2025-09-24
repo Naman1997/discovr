@@ -1,9 +1,13 @@
 package cmd
 
 import (
-	"fmt"
+	"github.com/Naman1997/discovr/internal"
 	"github.com/spf13/cobra"
-	"runtime"
+)
+
+var (
+	SubscriptionID     string
+	AzureCsvExportPath string
 )
 
 var azureCmd = &cobra.Command{
@@ -15,18 +19,13 @@ Usage:
 discovr azure --config FILENAME
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("azure called")
+		internal.Azurescan(SubscriptionID)
+		internal.AzureExport(AzureCsvExportPath)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(azureCmd)
-
-	var config string
-	switch runtime.GOOS {
-	case "windows":
-		azureCmd.Flags().StringVarP(&config, "config", "c", "~/.azure/config", "Path to azure config file")
-	default:
-		azureCmd.Flags().StringVarP(&config, "config", "c", "\\%USERPROFILE%\\.azure\\config", "Path to azure config file")
-	}
+	azureCmd.Flags().StringVarP(&SubscriptionID, "SubID", "s", "default", "Subscription ID for creating clients for API calls")
+	azureCmd.Flags().StringVarP(&AzureCsvExportPath, "export", "e", "", "Export results to CSV file")
 }

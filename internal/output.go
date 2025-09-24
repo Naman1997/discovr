@@ -94,3 +94,16 @@ func AwsExport(path string) {
 	}
 	Export(path, header, rows)
 }
+
+// Convert Azure results
+func AzureExport(path string) {
+	header := []string{"VM Name", "ID", "Location", "Resource Group", "NIC", "MAC", "SubnetID", "Vnet", "PrivateIP", "Public IP"}
+	if path == "" {
+		return
+	}
+	rows := make([][]string, len(azure_results))
+	for i, r := range azure_results {
+		rows[i] = []string{r.Name, r.UniqueID, r.Location, r.ResourceGroup, r.MAC, r.Subnet, r.Vnet, r.PrivateIP, r.PublicIP}
+	}
+	Export(path, header, rows)
+}
