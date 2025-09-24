@@ -31,6 +31,18 @@ type AzureVMResult struct {
 	PublicIP      string
 }
 
+type AzureVMData struct {
+	IP       string
+	IP_Mask  []string
+	NIC      []string
+	MAC      []string
+	Subnet   []string
+	Vnet     []string
+	PublicIP []string
+}
+
+var vmInfo AzureVMData
+
 type AzureProfile struct {
 	Subscriptions []struct {
 		ID        string `json:"id"`
@@ -131,21 +143,12 @@ func Azurescan(subIdInput string) {
 				ResourceGroup: vmID.ResourceGroupName,
 			}
 
-			type AzureVMData struct {
-				IP       string
-				IP_Mask  []string
-				NIC      []string
-				MAC      []string
-				Subnet   []string
-				Vnet     []string
-				PublicIP []string
-			}
-
-			var vmInfo AzureVMData
-
 			// NICs
 			for _, nicRef := range vm.Properties.NetworkProfile.NetworkInterfaces {
-				nicID, _ := arm.ParseResourceID(*nicRef.ID)
+				nicID, err := arm.ParseResourceID(*nicRef.ID)
+				if err != nil {
+					log.Fatal(err)
+				}
 				nic, err := nicClient.Get(ctx, nicID.ResourceGroupName, nicID.Name, nil)
 				if err != nil {
 					log.Fatal(err)
@@ -166,15 +169,18 @@ func Azurescan(subIdInput string) {
 
 					// Subnets and VNets
 					if ipConf.Properties.Subnet != nil {
-						subnetID, _ := arm.ParseResourceID(*ipConf.Properties.Subnet.ID)
-						if subnetID.Parent.Parent.Name != "" {
+						subnetID, err := arm.ParseResourceID(*ipConf.Properties.Subnet.ID)
+						if err != nil {
+							log.Fatal(err)
+						}
+						if subnetID.Parent.Name != "" {
 							vmInfo.Vnet = append(vmInfo.Vnet, subnetID.Parent.Name)
 						}
 						if subnetID.Name != "" {
 							vmInfo.Subnet = append(vmInfo.Subnet, subnetID.Name)
 						}
 
-						subnetResp, _ := subnetClient.Get(ctx, subnetID.ResourceGroupName, subnetID.Parent.Name, subnetID.Name, nil)
+						subnetResp, err := subnetClient.Get(ctx, subnetID.ResourceGroupName, subnetID.Parent.Name, subnetID.Name, nil)
 						if err != nil {
 							log.Fatal(err)
 						}
@@ -200,8 +206,11 @@ func Azurescan(subIdInput string) {
 					}
 					// Public IP
 					if ipConf.Properties.PublicIPAddress != nil {
-						pipID, _ := arm.ParseResourceID(*ipConf.Properties.PublicIPAddress.ID)
-						pip, _ := pipClient.Get(ctx, pipID.ResourceGroupName, pipID.Name, nil)
+						pipID, err := arm.ParseResourceID(*ipConf.Properties.PublicIPAddress.ID)
+						if err != nil {
+							log.Fatal(err)
+						}
+						pip, err := pipClient.Get(ctx, pipID.ResourceGroupName, pipID.Name, nil)
 						if err != nil {
 							log.Fatal(err)
 						}
