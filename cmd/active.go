@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/Naman1997/discovr/internal"
 	"github.com/spf13/cobra"
 )
@@ -25,7 +27,13 @@ var activeCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(activeCmd)
 	activeCmd.Flags().StringVarP(&ExportPathActive, "export", "e", "", "Export results to CSV file")
-	activeCmd.Flags().StringVarP(&networkInterface, "interface", "i", "any", "Network interface to use for scanning (default: any)")
+	activeCmd.Flags().StringVarP(&networkInterface, "interface", "i", "", "Network interface to use for scanning (default: any)")
 	activeCmd.Flags().StringVarP(&targetCIDR, "cidr", "c", "", "Target CIDR to scan (default: interface network)")
 	activeCmd.Flags().BoolVarP(&ICMPMode, "icmp", "", false, "Use ICMP echo requests instead of ARP (may require root/admin)")
+
+	err := activeCmd.MarkFlagRequired("interface")
+	if err != nil {
+		fmt.Println("Error marking flag as required:", err)
+	}
+
 }

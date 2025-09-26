@@ -61,33 +61,33 @@ func ArpScan(networkInterface string, targetCIDR string) {
 		panic(err)
 	}
 
-	if networkInterface == "any" {
-		ifaces, err := net.Interfaces()
-		if err != nil {
-			panic(err)
-		}
-		for _, iface := range ifaces {
-			wg.Add(1)
-			go func(iface net.Interface) {
-				defer wg.Done()
-				if err := scan(&iface, &devices, targetCIDR); err != nil {
-					log.Printf("interface %v: %v", iface.Name, err)
-				}
-			}(iface)
-		}
-	} else {
-		netiface, err := net.InterfaceByName(networkInterface)
-		if err != nil {
-			panic(err)
-		}
-		wg.Add(1)
-		go func(netiface net.Interface) {
-			defer wg.Done()
-			if err := scan(&netiface, &devices, targetCIDR); err != nil {
-				log.Printf("interface %v: %v", netiface.Name, err)
-			}
-		}(*netiface)
+	// if networkInterface == "any" {
+	// 	ifaces, err := net.Interfaces()
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	for _, iface := range ifaces {
+	// 		wg.Add(1)
+	// 		go func(iface net.Interface) {
+	// 			defer wg.Done()
+	// 			if err := scan(&iface, &devices, targetCIDR); err != nil {
+	// 				log.Printf("interface %v: %v", iface.Name, err)
+	// 			}
+	// 		}(iface)
+	// 	}
+	// } else {
+	netiface, err := net.InterfaceByName(networkInterface)
+	if err != nil {
+		panic(err)
 	}
+	wg.Add(1)
+	go func(netiface net.Interface) {
+		defer wg.Done()
+		if err := scan(&netiface, &devices, targetCIDR); err != nil {
+			log.Printf("interface %v: %v", netiface.Name, err)
+		}
+	}(*netiface)
+
 	wg.Wait()
 }
 
@@ -207,13 +207,11 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 			mu.Lock()
 			if seenResults[key] {
 				log.Printf("Duplicate detected for %s", key)
-				mu.Unlock()
-				return
+
 			} else {
 				seenResults[key] = true
 				defaultscan_results = append(defaultscan_results, result)
 			}
-
 			mu.Unlock()
 
 			log.Printf("IP %v is at %v from interface: %v",
