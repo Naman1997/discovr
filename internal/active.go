@@ -61,21 +61,6 @@ func ArpScan(networkInterface string, targetCIDR string) {
 		panic(err)
 	}
 
-	// if networkInterface == "any" {
-	// 	ifaces, err := net.Interfaces()
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	for _, iface := range ifaces {
-	// 		wg.Add(1)
-	// 		go func(iface net.Interface) {
-	// 			defer wg.Done()
-	// 			if err := scan(&iface, &devices, targetCIDR); err != nil {
-	// 				log.Printf("interface %v: %v", iface.Name, err)
-	// 			}
-	// 		}(iface)
-	// 	}
-	// } else {
 	netiface, err := net.InterfaceByName(networkInterface)
 	if err != nil {
 		panic(err)
