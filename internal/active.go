@@ -41,14 +41,21 @@ type ScanResultDfActive struct {
 
 // DefaultScan example: you can set desiredCIDR to "" to use interface mask,
 // or "192.168.0.0/28" to request scanning that CIDR (must be inside interface network).
-func DefaultScan(networkInterface string, targetCIDR string) {
-	// var networkInterface string = "Wi-Fi"
+func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool) {
+
+	if ICMPMode {
+		ICMPScan()
+	} else {
+		ArpScan(networkInterface, targetCIDR)
+	}
+
+}
+
+func ArpScan(networkInterface string, targetCIDR string) {
+	fmt.Println("Starting ARP scan...")
 	var wg sync.WaitGroup
 
-	// user-specified target CIDR; set to "" to use interface default
-	// desiredCIDR := "192.168.0.16/28" // <-- change this or set to ""
-	// desiredCIDR := ""
-	// Get a list of all device
+	// Find all devices
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
 		panic(err)
@@ -82,6 +89,10 @@ func DefaultScan(networkInterface string, targetCIDR string) {
 		}(*netiface)
 	}
 	wg.Wait()
+}
+
+func ICMPScan() {
+	fmt.Println("Starting ICMP scan...")
 }
 
 // scan now accepts targetCIDR. If targetCIDR == "" it uses interface network as before.
@@ -161,7 +172,7 @@ func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string) er
 		return err
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	return nil
 }
 
