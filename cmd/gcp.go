@@ -6,9 +6,9 @@ import (
 )
 
 var (
-	GcpCsvExportPath	string
-	ProjectFilterStr	string
-	CredFile			string
+	GcpCsvExportPath string
+	ProjectFilterStr string
+	CredFile         string
 )
 
 var gcpCmd = &cobra.Command{
