@@ -11,6 +11,22 @@ import (
 	"google.golang.org/api/option"
 )
 
+var gcp_results []GcpScanResult
+
+type GcpScanResult struct {
+	ProjectId     string
+	InstanceId    string
+	InstanceName  string
+	Hostname      string
+	OsType        string
+	Zone          string
+	InterfaceName string
+	InternalIP    string
+	ExternalIPs   string
+	VPC           string
+	Subnet        string
+}
+
 func GcpScan(credFile string, projectFilterStr string) {
 	ctx := context.Background()
 	var resourceManagerClient *cloudresourcemanager.Service
@@ -40,8 +56,6 @@ func GcpScan(credFile string, projectFilterStr string) {
 		}
 	}
 
-	
-
 	// List All Projects
 	projects, err := resourceManagerClient.Projects.List().Do()
 	if err != nil {
@@ -58,7 +72,7 @@ func GcpScan(credFile string, projectFilterStr string) {
 	filteredProjects := strings.Split(projectFilterStr, ",")
 
 	for _, project := range projects.Projects {
-		if(contains(filteredProjects, project.Name) || projectFilterStr == ""){
+		if contains(filteredProjects, project.Name) || projectFilterStr == "" {
 			fmt.Printf("Checking instances for project: %s\n", project.Name)
 
 			listInstanceNetworkInfo(computeService, project.ProjectId)
@@ -72,17 +86,17 @@ func GcpScan(credFile string, projectFilterStr string) {
 }
 
 func contains(s []string, e string) bool {
-    for _, a := range s {
-        if a == e {
-            return true
-        }
-    }
-    return false
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 // listInstanceNetworkInfo retrieves network details for instances in a specific project
 func listInstanceNetworkInfo(computeService *compute.Service, projectID string) error {
-	
+
 	// TODO: Figure out pagination
 	instanceList, err := computeService.Instances.AggregatedList(projectID).Do()
 	if err != nil {
@@ -91,6 +105,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 
 	// Process instances from all zones
 	for zoneName, instancesScopedList := range instanceList.Items {
+		zone := strings.TrimPrefix(zoneName, "zones/")
 
 		// Skip zones with no instances
 		if len(instancesScopedList.Instances) == 0 {
@@ -98,14 +113,34 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 		}
 
 		for _, instance := range instancesScopedList.Instances {
-			fmt.Println()
-			fmt.Printf("Project ID: %s\n", projectID)
-			fmt.Printf("Hostname: %s\n", instance.Name)
-			fmt.Printf("Zone: %s\n", strings.TrimPrefix(zoneName, "zones/"))
+			for _, networkInterface := range instance.NetworkInterfaces {
 
-			for idx, networkInterface := range instance.NetworkInterfaces {
-				fmt.Printf("\nNetwork Interface %d:\n", idx+1)
+				// Print item
+				fmt.Println()
+				fmt.Printf("Project ID: %s\n", projectID)
+				fmt.Printf("Instance ID: %d\n", instance.Id)
+				fmt.Printf("Instance Name: %s\n", instance.Name)
+				fmt.Printf("Hostname: %s\n", instance.Hostname)
+				
+				// Get OS details
+				var osType string
+				for _, disk := range instance.Disks {
+					if disk.Boot {
+						if disk.Licenses != nil && len(disk.Licenses) > 0 {
+							// Split the URL and get the last part
+							parts := strings.Split(disk.Licenses[0], "/")
+							if len(parts) > 0 {
+								osType := parts[len(parts)-1]
+								fmt.Printf("OS: %s\n", osType)
+								break
+							}
+						}
+					}
+				}
+
+				fmt.Printf("Zone: %s\n", zone)
 				fmt.Printf("Interface Name: %s\n", networkInterface.Name)
+
 
 				// Internal IP
 				if networkInterface.NetworkIP != "" {
@@ -114,31 +149,50 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 
 				// Collect all NatIP values (these are external Ips)
 				var natIPs []string
+				var natIPString string
 				for _, accessConfig := range networkInterface.AccessConfigs {
 					natIPs = append(natIPs, accessConfig.NatIP)
 				}
 				if len(natIPs) > 0 {
-					natIPString := fmt.Sprintf("[%s]", strings.Join(natIPs, ","))
+					natIPString = fmt.Sprintf("[%s]", strings.Join(natIPs, ","))
 					fmt.Printf("External IPs: %s\n", natIPString)
 				}
 
 				// VPC
+				var vpcID string
 				if networkInterface.Network != "" {
 					networkParts := strings.Split(networkInterface.Network, "/")
 					if len(networkParts) > 0 {
-						vpcID := networkParts[len(networkParts)-1]
+						vpcID = networkParts[len(networkParts)-1]
 						fmt.Printf("VPC: %s\n", vpcID)
 					}
 				}
 
 				// Subnet
+				var subnetID string
 				if networkInterface.Subnetwork != "" {
 					subnetParts := strings.Split(networkInterface.Subnetwork, "/")
 					if len(subnetParts) > 0 {
-						subnetID := subnetParts[len(subnetParts)-1]
+						subnetID = subnetParts[len(subnetParts)-1]
 						fmt.Printf("Subnet: %s\n", subnetID)
 					}
 				}
+
+				// Collect results
+				result := GcpScanResult{
+					ProjectId:     projectID,
+					InstanceId:    string(instance.Id),
+					InstanceName:  instance.Name,
+					Hostname:      instance.Hostname,
+					OsType:        osType,
+					Zone:          zone,
+					InterfaceName: networkInterface.Name,
+					InternalIP:    networkInterface.NetworkIP,
+					ExternalIPs:   natIPString,
+					VPC:           vpcID,
+					Subnet:        subnetID,
+				}
+				gcp_results = append(gcp_results, result)
 			}
 		}
 	}
