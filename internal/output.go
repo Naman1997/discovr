@@ -107,3 +107,16 @@ func AzureExport(path string) {
 	}
 	Export(path, header, rows)
 }
+
+// Convert GCP results
+func GcpExport(path string) {
+	header := []string{"ProjectId", "InstanceId", "InstanceName", "Hostname", "OS", "Zone", "InterfaceName", "InternalIp", "ExternalIps", "VPC", "Subnet"}
+	if path == "" {
+		return
+	}
+	rows := make([][]string, len(gcp_results))
+	for i, r := range gcp_results {
+		rows[i] = []string{r.ProjectId, r.InstanceId, r.InstanceName, r.Hostname, r.OsType, r.Zone, r.InterfaceName, r.InternalIP, r.ExternalIPs, r.VPC, r.Subnet}
+	}
+	Export(path, header, rows)
+}

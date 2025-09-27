@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -121,7 +122,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 				fmt.Printf("Instance ID: %d\n", instance.Id)
 				fmt.Printf("Instance Name: %s\n", instance.Name)
 				fmt.Printf("Hostname: %s\n", instance.Hostname)
-				
+
 				// Get OS details
 				var osType string
 				for _, disk := range instance.Disks {
@@ -130,7 +131,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 							// Split the URL and get the last part
 							parts := strings.Split(disk.Licenses[0], "/")
 							if len(parts) > 0 {
-								osType := parts[len(parts)-1]
+								osType = parts[len(parts)-1]
 								fmt.Printf("OS: %s\n", osType)
 								break
 							}
@@ -140,7 +141,6 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 
 				fmt.Printf("Zone: %s\n", zone)
 				fmt.Printf("Interface Name: %s\n", networkInterface.Name)
-
 
 				// Internal IP
 				if networkInterface.NetworkIP != "" {
@@ -181,7 +181,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 				// Collect results
 				result := GcpScanResult{
 					ProjectId:     projectID,
-					InstanceId:    string(instance.Id),
+					InstanceId:    strconv.FormatUint(instance.Id, 10),
 					InstanceName:  instance.Name,
 					Hostname:      instance.Hostname,
 					OsType:        osType,

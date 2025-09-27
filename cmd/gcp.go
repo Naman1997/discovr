@@ -18,7 +18,7 @@ var gcpCmd = &cobra.Command{
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.GcpScan(CredFile, ProjectFilterStr)
-		// internal.GcpExport(GcpCsvExportPath)
+		internal.GcpExport(GcpCsvExportPath)
 	},
 }
 
@@ -26,4 +26,5 @@ func init() {
 	rootCmd.AddCommand(gcpCmd)
 	gcpCmd.Flags().StringVarP(&ProjectFilterStr, "project", "p", "", "Comma separated project names to use as a filter")
 	gcpCmd.Flags().StringVarP(&CredFile, "cred", "c", "", "Path to service account json file to use for auth")
+	gcpCmd.Flags().StringVarP(&GcpCsvExportPath, "export", "e", "", "Export results to CSV file")
 }
