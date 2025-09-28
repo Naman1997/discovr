@@ -1,18 +1,12 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"regexp"
-	"runtime"
 	"strconv"
 
 	"github.com/Naman1997/discovr/internal"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/charmbracelet/huh"
-	"github.com/google/gopacket/pcap"
 )
 
 var (
@@ -32,73 +26,10 @@ var (
 	icmpmode        bool
 )
 
-type Adapter struct {
-	transport   string
-	description string
-}
-
-func GetOsPathPlaceholder() string {
-	switch runtime.GOOS {
-	case "windows":
-		placeholder = "default = no result | output.csv | C:\\Output\\output.csv"
-	default:
-		placeholder = "default = no result | ./output.csv"
-	}
-	return placeholder
-}
-
-func GetAdapters() ([]Adapter, error) {
-	devs, err := pcap.FindAllDevs()
-	if err != nil {
-		return nil, fmt.Errorf("pcap device enumeration failed: %w", err)
-	}
-	var adapters []Adapter
-	for _, dev := range devs {
-		if len(dev.Addresses) == 0 {
-			continue
-		}
-		adapters = append(adapters, Adapter{
-			transport:   dev.Name,
-			description: dev.Description,
-		})
-	}
-
-	return adapters, nil
-}
-
-func FetchAWSRegion() ([]string, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return nil, err
-	}
-	svc := ec2.NewFromConfig(cfg)
-	result, err := svc.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
-	if err != nil {
-		return nil, err
-	}
-	var regions []string
-	for _, region := range result.Regions {
-		regions = append(regions, *region.RegionName)
-	}
-	return regions, nil
-}
-
 func errhandle(form *huh.Form) {
 	if err := form.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-var guidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`)
-
-func validateSubscriptionID(input string) error {
-	if input == "" {
-		return nil
-	}
-	if !guidRegex.MatchString(input) {
-		return fmt.Errorf("invalid subscription ID format")
-	}
-	return nil
 }
 
 func RunTui() {
@@ -186,11 +117,20 @@ func RunTui() {
 				huh.NewInput().
 					Title("Enter Target IP:").
 					Placeholder("default = 127.0.0.1").
-					Value(&ip),
+					Value(&ip).
+					Validate(validateIP),
 				huh.NewInput().
 					Title("Enter Ports").
-					Placeholder("default = Top 1000 ports | specify ports eg 80,445").
-					Value(&ports), // TODO: Remove spaces between numbers and make sure , after numbers and no space OR Leave it upto user?
+					Placeholder("default = Top 1000 ports | specify ports eg: 80,445").
+					Value(&ports).
+					Validate(func(input string) error {
+						normalized, err := ValidatePorts(input)
+						if err != nil {
+							return err
+						}
+						ports = normalized
+						return nil
+					}),
 				huh.NewConfirm().
 					Title("OS detection:").
 					Value(&osdet),
