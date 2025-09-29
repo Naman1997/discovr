@@ -31,6 +31,9 @@ var (
 	defaultscan_results []ScanResultDfActive
 	seenResults         = make(map[string]bool)
 	mu                  sync.Mutex
+	stats               SweepStats
+	timeout             time.Duration
+	wg                  sync.WaitGroup
 )
 
 type ScanResultDfActive struct {
@@ -39,12 +42,19 @@ type ScanResultDfActive struct {
 	Dest_Mac  string
 }
 
+// SweepStats holds sweep statistics
+type SweepStats struct {
+	PacketsSent     int
+	PacketsReceived int
+	TotalRTT        time.Duration
+}
+
 // DefaultScan example: you can set desiredCIDR to "" to use interface mask,
 // or "192.168.0.0/28" to request scanning that CIDR (must be inside interface network).
 func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool) {
 
 	if ICMPMode {
-		ICMPScan()
+		ICMPScan(targetCIDR)
 	} else {
 		ArpScan(networkInterface, targetCIDR)
 	}
@@ -53,7 +63,6 @@ func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool) {
 
 func ArpScan(networkInterface string, targetCIDR string) {
 	fmt.Println("Starting ARP scan...")
-	var wg sync.WaitGroup
 
 	// Find all devices
 	devices, err := pcap.FindAllDevs()
@@ -76,8 +85,151 @@ func ArpScan(networkInterface string, targetCIDR string) {
 	wg.Wait()
 }
 
-func ICMPScan() {
-	fmt.Println("Starting ICMP scan...")
+func ICMPScan(targetCIDR string) {
+	if targetCIDR == "" {
+		fmt.Println("No CIDR provided for ICMP scan, please provide a valid CIDR using the -c flag.")
+		return
+	}
+
+	timeout = 2 * time.Second
+	target := targetCIDR
+	// --- Detect Single IP or CIDR ---
+	if _, ipnet, err := net.ParseCIDR(target); err == nil {
+		fmt.Printf("Target is a CIDR: %s (network %s)\n", target, ipnet.String())
+		runSweep(target)
+	} else if ip := net.ParseIP(target); ip != nil {
+		fmt.Printf("Target is a single IP: %s\n", target)
+		wg.Add(1)
+		go pingHost(target, 4)
+		wg.Wait()
+	} else {
+		fmt.Println("Invalid input: not a valid IP or CIDR")
+		return
+	}
+	fmt.Println("Ping sweep complete.")
+	printStats()
+}
+
+// runSweep handles CIDR sweeps
+func runSweep(cidr string) {
+	ips, err := hostsInCIDR(cidr)
+	if err != nil {
+		log.Fatalf("Error parsing CIDR: %v", err)
+	}
+
+	fmt.Printf("Starting ping sweep on %s ...\n", cidr)
+	for _, ip := range ips {
+		wg.Add(1)
+		go pingHost(ip, 1)
+	}
+
+	wg.Wait()
+
+}
+
+// pingHost sends a single ICMP Echo Request
+func pingHost(ip string, count int) {
+	defer wg.Done()
+
+	remoteAddr, err := net.ResolveIPAddr("ip4", ip)
+	if err != nil {
+		return
+	}
+
+	conn, err := net.DialIP("ip4:icmp", nil, remoteAddr) // nil => let OS pick interface
+	if err != nil {
+		fmt.Println("Unable to open raw socket. Run as Administrator/Root.")
+		return
+	}
+	defer conn.Close()
+
+	for i := 1; i <= count; i++ {
+		mu.Lock()
+		stats.PacketsSent++
+		mu.Unlock()
+		// Build ICMP Echo Request
+		icmp := &layers.ICMPv4{
+			TypeCode: layers.CreateICMPv4TypeCode(layers.ICMPv4TypeEchoRequest, 0),
+			Id:       54321,
+			Seq:      uint16(i),
+		}
+
+		buf := gopacket.NewSerializeBuffer()
+		opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}
+		if err := icmp.SerializeTo(buf, opts); err != nil {
+			log.Fatalf("Failed to serialize ICMP packet: %v", err)
+		}
+
+		start := time.Now()
+		if _, err := conn.Write(buf.Bytes()); err != nil {
+			log.Printf("Request %d failed to send: %v\n", i, err)
+			continue
+		}
+
+		reply := make([]byte, 1500)
+		_ = conn.SetReadDeadline(time.Now().Add(timeout))
+		if _, _, err := conn.ReadFrom(reply); err == nil {
+			rtt := time.Since(start)
+			fmt.Printf("Host up: %-15s RTT=%v\n", ip, rtt)
+
+			mu.Lock()
+			stats.PacketsReceived++
+			stats.TotalRTT += rtt
+			mu.Unlock()
+		}
+
+		time.Sleep(700 * time.Millisecond)
+	}
+}
+
+// hostsInCIDR expands CIDR to a list of host IPs (excluding network/broadcast)
+func hostsInCIDR(cidr string) ([]string, error) {
+	ip, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil, err
+	}
+
+	var ips []string
+	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); inc(ip) {
+		ips = append(ips, ip.String())
+	}
+
+	// Remove network and broadcast
+	if len(ips) > 2 {
+		ips = ips[1 : len(ips)-1]
+	}
+	return ips, nil
+}
+
+// inc increments an IP address
+func inc(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
+}
+
+// printStats shows summary of packet statistics
+func printStats() {
+	sent := stats.PacketsSent
+	received := stats.PacketsReceived
+	loss := 0.0
+	if sent > 0 {
+		loss = float64(sent-received) / float64(sent) * 100
+	}
+
+	fmt.Println("📊 --- Sweep Statistics ---")
+	fmt.Printf("Packets Sent:     %d\n", sent)
+	fmt.Printf("Packets Received: %d\n", received)
+	fmt.Printf("Packet Loss:      %.1f%%\n", loss)
+
+	if received > 0 {
+		avgRTT := stats.TotalRTT / time.Duration(received)
+		fmt.Printf("Average RTT:      %v\n", avgRTT)
+	}
+	fmt.Println("---------------------------")
 }
 
 // scan now accepts targetCIDR. If targetCIDR == "" it uses interface network as before.
