@@ -58,24 +58,33 @@ func PassiveExport(path string) {
 }
 
 // Convert Active results
-func ActiveExport(path string, nmapScan bool) {
+func ActiveExport(path string, mode string) {
 	if path == "" {
 		return
 	}
 	//Changes for scrum-136
-	if nmapScan {
+	if mode == "nmap" {
 		header := []string{"Port", "Protocol", "State", "Service", "Product"}
 		rows := make([][]string, len(active_results))
 		for i, r := range active_results {
 			rows[i] = []string{r.Port, r.Protocol, r.State, r.Service, r.Product}
 		}
 		Export(path, header, rows)
-	} else {
+	} else if mode == "arp" {
 		// for default scan
 		header := []string{"Interface", "Dest_IP", "Dest_Mac"}
 		rows := make([][]string, len(defaultscan_results))
 		for i, r := range defaultscan_results {
 			rows[i] = []string{r.Interface, r.Dest_IP, r.Dest_Mac}
+		}
+		Export(path, header, rows)
+		return
+	} else {
+		// for icmp scan
+		header := []string{"IP", "RTT"}
+		rows := make([][]string, len(icmpscan_results))
+		for i, r := range icmpscan_results {
+			rows[i] = []string{r.IP, r.RTT.String()}
 		}
 		Export(path, header, rows)
 		return

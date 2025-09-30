@@ -29,6 +29,7 @@ import (
 
 var (
 	defaultscan_results []ScanResultDfActive
+	icmpscan_results    []ScanResultICMP
 	seenResults         = make(map[string]bool)
 	mu                  sync.Mutex
 	stats               SweepStats
@@ -47,6 +48,11 @@ type SweepStats struct {
 	PacketsSent     int
 	PacketsReceived int
 	TotalRTT        time.Duration
+}
+
+type ScanResultICMP struct {
+	IP  string
+	RTT time.Duration
 }
 
 // DefaultScan example: you can set desiredCIDR to "" to use interface mask,
@@ -97,6 +103,7 @@ func ICMPScan(targetCIDR string) {
 	if _, ipnet, err := net.ParseCIDR(target); err == nil {
 		fmt.Printf("Target is a CIDR: %s (network %s)\n", target, ipnet.String())
 		runSweep(target)
+		fmt.Println("Ping sweep complete.")
 	} else if ip := net.ParseIP(target); ip != nil {
 		fmt.Printf("Target is a single IP: %s\n", target)
 		wg.Add(1)
@@ -106,7 +113,6 @@ func ICMPScan(targetCIDR string) {
 		fmt.Println("Invalid input: not a valid IP or CIDR")
 		return
 	}
-	fmt.Println("Ping sweep complete.")
 	printStats()
 }
 
@@ -170,9 +176,14 @@ func pingHost(ip string, count int) {
 		_ = conn.SetReadDeadline(time.Now().Add(timeout))
 		if _, _, err := conn.ReadFrom(reply); err == nil {
 			rtt := time.Since(start)
-			fmt.Printf("Host up: %-15s RTT=%v\n", ip, rtt)
+			fmt.Printf("Host up: %-15s RTT=%v Seq=%v\n", ip, rtt, icmp.Seq)
 
 			mu.Lock()
+			result := ScanResultICMP{
+				IP:  ip,
+				RTT: rtt,
+			}
+			icmpscan_results = append(icmpscan_results, result)
 			stats.PacketsReceived++
 			stats.TotalRTT += rtt
 			mu.Unlock()
