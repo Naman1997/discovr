@@ -55,13 +55,8 @@ func RunTui() {
 			),
 		)
 		errhandle(form)
-		internal.DefaultScan(netInterface, tCIDR, icmpmode)
-		if icmpmode == false {
-			internal.ActiveExport(exportpath, "arp")
-		} else {
-			internal.ActiveExport(exportpath, "icmp")
-		}
-
+		internal.DefaultScan(netInterface, tCIDR, icmpmode, concurrency, timeout, count)
+		internal.ActiveExport(exportpath, icmpmode)
 	case "Passive Scan":
 		var options []huh.Option[string]
 		pathplaceholder := GetOsPathPlaceholder()
@@ -149,7 +144,7 @@ func RunTui() {
 			ip = "127.0.0.1"
 		}
 		internal.NmapScan(ip, ports, osdet)
-		internal.ActiveExport(exportpath, "nmap")
+		internal.NmapExport(exportpath)
 
 	case "Azure Cloud Scan":
 		pathplaceholder := GetOsPathPlaceholder()
