@@ -29,7 +29,7 @@ var activeCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(activeCmd)
-	activeCmd.Flags().BoolVarP(&ICMPMode, "mode", "m", false, "Use ICMP echo requests instead of ARP")
+	activeCmd.Flags().BoolVarP(&ICMPMode, "mode", "m", false, "Use ICMP echo requests instead of ARP (true/false) (default false)")
 	activeCmd.Flags().StringVarP(&networkInterface, "interface", "i", "", "Network interface to use for scanning (ARP)")
 	activeCmd.Flags().StringVarP(&targetCIDR, "cidr", "r", "", "Target CIDR to scan (ARP, ICMP)")
 	activeCmd.Flags().StringVarP(&ExportPathActive, "export", "e", "", "Export results to CSV file")
