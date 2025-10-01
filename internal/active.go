@@ -44,13 +44,6 @@ type ScanResultDfActive struct {
 	Dest_Mac  string
 }
 
-// SweepStats holds sweep statistics
-type SweepStats struct {
-	PacketsSent     int
-	PacketsReceived int
-	TotalRTT        time.Duration
-}
-
 type ScanResultICMP struct {
 	IP  string
 	RTT time.Duration
