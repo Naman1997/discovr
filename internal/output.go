@@ -58,18 +58,20 @@ func PassiveExport(path string) {
 }
 
 // Convert Active results
-func ActiveExport(path string, nmapScan bool) {
+func ActiveExport(path string, mode bool) {
 	if path == "" {
 		return
 	}
 	//Changes for scrum-136
-	if nmapScan {
-		header := []string{"Port", "Protocol", "State", "Service", "Product"}
-		rows := make([][]string, len(active_results))
-		for i, r := range active_results {
-			rows[i] = []string{r.Port, r.Protocol, r.State, r.Service, r.Product}
+	if mode {
+		// for icmp scan
+		header := []string{"IP", "RTT"}
+		rows := make([][]string, len(icmpscan_results))
+		for i, r := range icmpscan_results {
+			rows[i] = []string{r.IP, r.RTT.String()}
 		}
 		Export(path, header, rows)
+		return
 	} else {
 		// for default scan
 		header := []string{"Interface", "Dest_IP", "Dest_Mac"}
@@ -78,8 +80,19 @@ func ActiveExport(path string, nmapScan bool) {
 			rows[i] = []string{r.Interface, r.Dest_IP, r.Dest_Mac}
 		}
 		Export(path, header, rows)
+	}
+}
+
+func NmapExport(path string) {
+	if path == "" {
 		return
 	}
+	header := []string{"Port", "Protocol", "State", "Service", "Product"}
+	rows := make([][]string, len(active_results))
+	for i, r := range active_results {
+		rows[i] = []string{r.Port, r.Protocol, r.State, r.Service, r.Product}
+	}
+	Export(path, header, rows)
 }
 
 // Convert AWS results

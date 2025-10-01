@@ -13,6 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.251.0
 	github.com/charmbracelet/huh v0.7.0
 	github.com/google/gopacket v1.1.19
+	github.com/prometheus-community/pro-bing v0.7.0
 	github.com/spf13/cobra v1.9.1
 	golang.org/x/sync v0.17.0
 	google.golang.org/api v0.250.0

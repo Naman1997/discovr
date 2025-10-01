@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
 	"time"
@@ -25,12 +27,15 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	probing "github.com/prometheus-community/pro-bing"
 )
 
 var (
 	defaultscan_results []ScanResultDfActive
+	icmpscan_results    []ScanResultICMP
 	seenResults         = make(map[string]bool)
 	mu                  sync.Mutex
+	c                   = make(chan os.Signal, 1)
 )
 
 type ScanResultDfActive struct {
@@ -39,12 +44,17 @@ type ScanResultDfActive struct {
 	Dest_Mac  string
 }
 
+type ScanResultICMP struct {
+	IP  string
+	RTT time.Duration
+}
+
 // DefaultScan example: you can set desiredCIDR to "" to use interface mask,
 // or "192.168.0.0/28" to request scanning that CIDR (must be inside interface network).
-func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool) {
+func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool, concurrency int, timeoutSec int, count int) {
 
 	if ICMPMode {
-		ICMPScan()
+		ICMPScan(targetCIDR, concurrency, timeoutSec, count)
 	} else {
 		ArpScan(networkInterface, targetCIDR)
 	}
@@ -54,7 +64,6 @@ func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool) {
 func ArpScan(networkInterface string, targetCIDR string) {
 	fmt.Println("Starting ARP scan...")
 	var wg sync.WaitGroup
-
 	// Find all devices
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
@@ -76,8 +85,116 @@ func ArpScan(networkInterface string, targetCIDR string) {
 	wg.Wait()
 }
 
-func ICMPScan() {
-	fmt.Println("Starting ICMP scan...")
+func ICMPScan(targetCIDR string, concurrency int, timeoutSec int, count int) {
+	if targetCIDR == "" {
+		fmt.Println("No CIDR provided for ICMP scan, please provide a valid CIDR using the -c flag.")
+		return
+	}
+
+	// Handle Ctrl+C
+	signal.Notify(c, os.Interrupt)
+	target := targetCIDR
+	// --- Detect Single IP or CIDR ---
+	if ip, ipnet, err := net.ParseCIDR(target); err == nil {
+		fmt.Printf("Target is a CIDR: %s (network %s)\n", target, ipnet.String())
+		runSweep(ip, ipnet, concurrency, count, time.Duration(timeoutSec)*time.Second)
+		fmt.Println("Ping sweep complete.")
+
+	} else if ip := net.ParseIP(target); ip != nil {
+		fmt.Printf("Target is a single IP: %s\n", target)
+		pingHost(target, count, time.Duration(timeoutSec)*time.Second)
+	} else {
+		fmt.Println("Invalid input: not a valid IP or CIDR")
+	}
+}
+
+func runSweep(ip net.IP, ipNet *net.IPNet, concurrency int, count int, timeout time.Duration) {
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, concurrency) // limit parallel workers
+
+	for currentIP := ip.Mask(ipNet.Mask); ipNet.Contains(currentIP); incIP(currentIP) {
+		select {
+		case <-c:
+			fmt.Println("\nInterrupted.")
+			return
+		default:
+			hostIP := currentIP.String()
+			if hostIP == ipNet.IP.String() || isBroadcast(hostIP, ipNet) {
+				continue
+			}
+
+			wg.Add(1)
+			sem <- struct{}{} // acquire slot
+
+			go func(target string) {
+				defer wg.Done()
+				defer func() { <-sem }() // release slot
+
+				pinger, err := probing.NewPinger(target)
+				if err != nil {
+					return
+				}
+				pinger.SetPrivileged(true)
+
+				pinger.Count = count
+				pinger.Interval = time.Duration(100) * time.Millisecond
+				pinger.Timeout = timeout
+				if err := pinger.Run(); err == nil && pinger.Statistics().PacketsRecv > 0 {
+					fmt.Printf("Host alive: %-15s (avg RTT: %v)\n",
+						target, pinger.Statistics().AvgRtt)
+					mu.Lock()
+					icmpscan_results = append(icmpscan_results, ScanResultICMP{
+						IP:  target,
+						RTT: pinger.Statistics().AvgRtt,
+					})
+					mu.Unlock()
+				}
+			}(hostIP)
+		}
+	}
+
+	wg.Wait()
+}
+
+// pingHost handles single-target ping with stats
+func pingHost(target string, count int, timeout time.Duration) {
+	pinger, err := probing.NewPinger(target)
+	if err != nil {
+		fmt.Printf("Cannot create pinger for %s: %v\n", target, err)
+		return
+	}
+	pinger.SetPrivileged(true)
+
+	pinger.Count = count
+	pinger.Interval = time.Duration(100) * time.Millisecond
+	pinger.Timeout = timeout
+	pinger.OnRecv = func(pkt *probing.Packet) {
+		fmt.Printf("%d bytes from %s: icmp_seq=%d time=%v ttl=%v\n",
+			pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt, pkt.TTL)
+	}
+	if err := pinger.Run(); err != nil {
+		fmt.Printf("Ping failed for %s: %v\n", target, err)
+	}
+}
+
+// incIP increments an IP address by 1
+func incIP(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
+}
+
+// isBroadcast checks if IP is the broadcast address of the subnet
+func isBroadcast(ipStr string, ipNet *net.IPNet) bool {
+	ip := net.ParseIP(ipStr).To4()
+	broadcast := make(net.IP, len(ip))
+	for i := range ip {
+		broadcast[i] = ipNet.IP[i] | ^ipNet.Mask[i]
+	}
+	return ip.Equal(broadcast)
 }
 
 // scan now accepts targetCIDR. If targetCIDR == "" it uses interface network as before.
