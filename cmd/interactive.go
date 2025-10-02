@@ -45,9 +45,26 @@ func RunTui() {
 
 	switch scantype {
 	case "Active Scan":
+		var options []huh.Option[string]
 		pathplaceholder := GetOsPathPlaceholder()
+		options, err := GetInterfaceOptions()
+		if err != nil {
+			panic(err)
+		}
+
 		form := huh.NewForm(
 			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select an option").
+					Options(options...).
+					Value(&netInterface),
+				huh.NewInput().
+					Title("Enter an export path:").
+					Placeholder("default = /24 | /21, /22").
+					Value(&tCIDR),
+				huh.NewConfirm().
+					Title("ICMP Scan type:").
+					Value(&icmpmode),
 				huh.NewInput().
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
@@ -56,6 +73,7 @@ func RunTui() {
 		)
 		errhandle(form)
 		internal.DefaultScan(netInterface, tCIDR, icmpmode)
+		internal.ShowActiveResults()
 		internal.ActiveExport(exportpath, false)
 
 	case "Passive Scan":
@@ -108,6 +126,7 @@ func RunTui() {
 			duration, _ = strconv.Atoi(durationStr)
 		}
 		internal.PassiveScan(selectinterface, duration)
+		internal.ShowPassiveScanResults()
 		internal.PassiveExport(exportpath)
 
 	case "Nmap Scan":
@@ -145,6 +164,7 @@ func RunTui() {
 			ip = "127.0.0.1"
 		}
 		internal.NmapScan(ip, ports, osdet)
+		internal.ShowNmapScanResults()
 		internal.ActiveExport(exportpath, true)
 
 	case "Azure Cloud Scan":
@@ -168,6 +188,7 @@ func RunTui() {
 			subID = "default"
 		}
 		internal.Azurescan(subID)
+		internal.ShowAzureResultsTable()
 		internal.AzureExport(exportpath)
 
 	case "AWS Cloud Scan":

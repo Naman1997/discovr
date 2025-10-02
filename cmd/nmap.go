@@ -18,6 +18,7 @@ var nmapCmd = &cobra.Command{
 	Long:  `Sends network requests with NMAP tool across the CIDR range to determine device ip, mac address and other details`,
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.NmapScan(Target, Ports, OsDetection)
+		internal.ShowNmapScanResults()
 		internal.ActiveExport(PathActive, true)
 	},
 }

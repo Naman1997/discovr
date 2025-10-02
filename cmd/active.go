@@ -20,6 +20,7 @@ var activeCmd = &cobra.Command{
 	Long:  `Sends network requests across the CIDR range to determine device ip, mac address and other details with arp requests or icmp requests.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.DefaultScan(networkInterface, targetCIDR, ICMPMode)
+		internal.ShowActiveResults()
 		internal.ActiveExport(ExportPathActive, false)
 	},
 }

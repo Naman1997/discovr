@@ -13,34 +13,37 @@ func Export(filePath string, header []string, rows [][]string) error {
 		fmt.Println("\nExport path did not have .csv extension, saving as:", filePath)
 	}
 
-	// Check if file exists
-	_, err := os.Stat(filePath)
-	fileExists := err == nil
+	originalPath := filePath
+	count := 1
+	for {
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			break
+		}
+		ext := filepath.Ext(originalPath)
+		name := originalPath[:len(originalPath)-len(ext)]
+		filePath = fmt.Sprintf("%s_%d%s", name, count, ext)
+		count++
+	}
 
-	// Open or create file
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("error opening file: %v", err)
+		return fmt.Errorf("error creating file: %v", err)
 	}
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Write header only if file is new
-	if !fileExists {
-		if err := writer.Write(header); err != nil {
-			return fmt.Errorf("error writing header: %v", err)
-		}
+	if err := writer.Write(header); err != nil {
+		return fmt.Errorf("error writing header: %v", err)
 	}
 
-	// Write rows
 	for _, row := range rows {
 		if err := writer.Write(row); err != nil {
 			return fmt.Errorf("error writing row: %v", err)
 		}
 	}
-	fmt.Printf("Saving to: %v", filePath)
+	fmt.Printf("Saved to: %v\n", filePath)
 	return nil
 }
 
