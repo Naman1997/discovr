@@ -60,7 +60,6 @@ func RunTui() {
 					Value(&netInterface),
 				huh.NewInput().
 					Title("Enter a CIDR range:").
-					Placeholder("default = /24 | /21, /22").
 					Value(&tCIDR),
 				huh.NewConfirm().
 					Title("ICMP Scan type:").
