@@ -165,7 +165,7 @@ func RunTui() {
 		}
 		internal.NmapScan(ip, ports, osdet)
 		internal.ShowNmapScanResults()
-		internal.ActiveExport(exportpath, true)
+		internal.NmapExport(exportpath)
 
 	case "Azure Cloud Scan":
 		pathplaceholder := GetOsPathPlaceholder()

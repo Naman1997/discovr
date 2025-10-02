@@ -12,6 +12,9 @@ var (
 	networkInterface string
 	targetCIDR       string
 	ICMPMode         bool
+	concurrency      int
+	timeout          int
+	count            int
 )
 
 var activeCmd = &cobra.Command{
@@ -27,11 +30,13 @@ var activeCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(activeCmd)
+	activeCmd.Flags().BoolVarP(&ICMPMode, "mode", "m", false, "Use ICMP echo requests instead of ARP (true/false) (default false)")
+	activeCmd.Flags().StringVarP(&networkInterface, "interface", "i", "", "Network interface to use for scanning (ARP)")
+	activeCmd.Flags().StringVarP(&targetCIDR, "cidr", "r", "", "Target CIDR to scan (ARP, ICMP)")
 	activeCmd.Flags().StringVarP(&ExportPathActive, "export", "e", "", "Export results to CSV file")
-	activeCmd.Flags().StringVarP(&networkInterface, "interface", "i", "", "Network interface to use for scanning (default: any)")
-	activeCmd.Flags().StringVarP(&targetCIDR, "cidr", "c", "", "Target CIDR to scan (default: interface network)")
-	activeCmd.Flags().BoolVarP(&ICMPMode, "icmp", "", false, "Use ICMP echo requests instead of ARP (may require root/admin)")
-
+	activeCmd.Flags().IntVarP(&concurrency, "concurrency", "p", 50, "Number of concurrent workers (ICMP)")
+	activeCmd.Flags().IntVarP(&timeout, "timeout", "t", 2, "Timeout in seconds to wait for each reply (ICMP)")
+	activeCmd.Flags().IntVarP(&count, "count", "c", 1, "Number of requests to send to each IP (ICMP)")
 	err := activeCmd.MarkFlagRequired("interface")
 	if err != nil {
 		fmt.Println("Error marking flag as required:", err)
