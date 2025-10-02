@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/charmbracelet/huh"
 	"github.com/google/gopacket/pcap"
 )
 
@@ -128,4 +129,25 @@ func atoi(s string) int {
 	var n int
 	fmt.Sscanf(s, "%d", &n)
 	return n
+}
+
+func GetInterfaceOptions() ([]huh.Option[string], error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get interfaces: %w", err)
+	}
+
+	var options []huh.Option[string]
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		options = append(options, huh.Option[string]{
+			Key:   iface.Name,
+			Value: iface.Name,
+		})
+	}
+
+	return options, nil
 }

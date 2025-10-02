@@ -145,6 +145,7 @@ func Azurescan(subIdInput string) {
 
 			// NICs
 			for _, nicRef := range vm.Properties.NetworkProfile.NetworkInterfaces {
+				var vmInfo AzureVMData
 				nicID, err := arm.ParseResourceID(*nicRef.ID)
 				if err != nil {
 					log.Fatal(err)
@@ -218,28 +219,28 @@ func Azurescan(subIdInput string) {
 							vmInfo.PublicIP = append(vmInfo.PublicIP, *pip.Properties.IPAddress)
 						}
 					}
+					result.NIC = strings.Join(vmInfo.NIC, ", ")
+					result.MAC = strings.Join(vmInfo.MAC, ", ")
+					result.PrivateIP = strings.Join(vmInfo.IP_Mask, ", ")
+					result.Subnet = strings.Join(vmInfo.Subnet, ", ")
+					result.Vnet = strings.Join(vmInfo.Vnet, ", ")
+					result.PublicIP = strings.Join(vmInfo.PublicIP, ", ")
+
+					fmt.Printf("\nName: %s\n", result.Name)
+					fmt.Printf("ID: %s\n", result.UniqueID)
+					fmt.Printf("Location: %s\n", result.Location)
+					fmt.Printf("Resource Group: %s\n", result.ResourceGroup)
+					fmt.Printf("Private IP: %s\n", result.PrivateIP)
+					fmt.Printf("Public IP: %s\n", result.PublicIP)
+					fmt.Printf("MAC Address: %s\n", result.MAC)
+					fmt.Printf("Vnet: %s\n", result.Vnet)
+					fmt.Printf("NIC: %s\n", result.NIC)
+					fmt.Printf("Subnet: %s\n", result.Subnet)
+
+					azure_results = append(azure_results, result)
 				}
 			}
 
-			result.NIC = strings.Join(vmInfo.NIC, ", ")
-			result.MAC = strings.Join(vmInfo.MAC, ", ")
-			result.PrivateIP = strings.Join(vmInfo.IP_Mask, ", ")
-			result.Subnet = strings.Join(vmInfo.Subnet, ", ")
-			result.Vnet = strings.Join(vmInfo.Vnet, ", ")
-			result.PublicIP = strings.Join(vmInfo.PublicIP, ", ")
-
-			fmt.Printf("\nName: %s\n", result.Name)
-			fmt.Printf("ID: %s\n", result.UniqueID)
-			fmt.Printf("Location: %s\n", result.Location)
-			fmt.Printf("Resource Group: %s\n", result.ResourceGroup)
-			fmt.Printf("Private IP: %s\n", result.PrivateIP)
-			fmt.Printf("Public IP: %s\n", result.PublicIP)
-			fmt.Printf("MAC Address: %s\n", result.MAC)
-			fmt.Printf("Vnet: %s\n", result.Vnet)
-			fmt.Printf("NIC: %s\n", result.NIC)
-			fmt.Printf("Subnet: %s\n", result.Subnet)
-
-			azure_results = append(azure_results, result)
 		}
 	}
 }

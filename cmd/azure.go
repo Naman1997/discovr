@@ -20,6 +20,7 @@ discovr azure --config FILENAME
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.Azurescan(SubscriptionID)
+		internal.ShowAzureResultsTable()
 		internal.AzureExport(AzureCsvExportPath)
 	},
 }
