@@ -72,7 +72,7 @@ func RunTui() {
 			),
 		)
 		errhandle(form)
-		internal.DefaultScan(netInterface, tCIDR, icmpmode)
+		internal.DefaultScan(netInterface, tCIDR, icmpmode, concurrency, timeout, count)
 		internal.ShowActiveResults()
 		internal.ActiveExport(exportpath, false)
 
