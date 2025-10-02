@@ -59,7 +59,7 @@ func RunTui() {
 					Options(options...).
 					Value(&netInterface),
 				huh.NewInput().
-					Title("Enter an export path:").
+					Title("Enter a CIDR range:").
 					Placeholder("default = /24 | /21, /22").
 					Value(&tCIDR),
 				huh.NewConfirm().
