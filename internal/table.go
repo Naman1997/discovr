@@ -3,59 +3,35 @@ package internal
 import (
 	"fmt"
 	"os"
+	"reflect"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-type Asset struct {
-	Name string
-	IP   string
-	MAC  string
-}
-
+// Base style for table borders
 var baseStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("#975b85ff"))
 
-type model struct {
-	table table.Model
+// -------------------- Table Model --------------------
+type tableModel struct {
+	table        table.Model
+	data         interface{}
+	highlightIPs bool
+	width        int
 }
 
-func (m model) Init() tea.Cmd { return nil }
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
-			if m.table.Focused() {
-				m.table.Blur()
-			} else {
-				m.table.Focus()
-			}
-		case "q", "ctrl+c":
-			return m, tea.Quit
-			//		case "enter":
-			//			return m, tea.Printf("Selected asset: %s", m.table.SelectedRow()[0])
-		}
-	}
-	m.table, cmd = m.table.Update(msg)
-	return m, cmd
-}
-
-func (m model) View() string {
-	return baseStyle.Render(m.table.View()) + "\n"
-}
-
-func RenderAssetsTable(columns []table.Column, rows []table.Row, height int) {
+// Create a new table model from any struct slice
+func NewTableModel(data interface{}, highlightIPs bool, width int) *tableModel {
+	columns, rows := BuildDynamicTableWithWrap(data, highlightIPs, width)
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
+		table.WithHeight(len(rows)+3),
 		table.WithFocused(true),
-		table.WithHeight(height),
 	)
 
 	// Styling
@@ -72,121 +48,198 @@ func RenderAssetsTable(columns []table.Column, rows []table.Row, height int) {
 		Bold(false)
 	t.SetStyles(s)
 
-	m := model{t}
-	if _, err := tea.NewProgram(m).Run(); err != nil {
-		fmt.Println("Error running program:", err)
+	return &tableModel{table: t, data: data, highlightIPs: highlightIPs, width: width}
+}
+
+// -------------------- Bubble Tea Methods --------------------
+func (m *tableModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m *tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		columns, rows := BuildDynamicTableWithWrap(m.data, m.highlightIPs, m.width)
+		m.table.SetColumns(columns)
+		m.table.SetRows(rows)
+
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "esc":
+			if m.table.Focused() {
+				m.table.Blur()
+			} else {
+				m.table.Focus()
+			}
+		}
+	}
+
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
+}
+
+func (m *tableModel) View() string {
+	return baseStyle.Render(m.table.View()) + "\n"
+}
+
+// -------------------- Text Wrapping --------------------
+func WrapText(text string, maxWidth int) []string {
+	if len(text) <= maxWidth {
+		return []string{text}
+	}
+
+	var lines []string
+	for len(text) > 0 {
+		if len(text) <= maxWidth {
+			lines = append(lines, text)
+			break
+		}
+		lines = append(lines, text[:maxWidth])
+		text = text[maxWidth:]
+	}
+	return lines
+}
+
+// -------------------- Dynamic Width Compute --------------------
+func ComputeColumnWidths(data interface{}, maxTotalWidth int) []int {
+	v := reflect.ValueOf(data)
+	if v.Len() == 0 {
+		return nil
+	}
+
+	elemType := v.Index(0).Type()
+	numCols := elemType.NumField()
+	widths := make([]int, numCols)
+
+	// First, take header widths
+	for i := 0; i < numCols; i++ {
+		widths[i] = len(elemType.Field(i).Name)
+	}
+
+	// Then, scan data to find max content width for each column
+	for i := 0; i < v.Len(); i++ {
+		elem := v.Index(i)
+		for j := 0; j < numCols; j++ {
+			fieldVal := fmt.Sprintf("%v", elem.Field(j).Interface())
+			lines := strings.Split(fieldVal, "\n")
+			for _, line := range lines {
+				if len(line) > widths[j] {
+					widths[j] = len(line)
+				}
+			}
+		}
+	}
+
+	// Compute total natural width
+	totalWidth := numCols - 1 // for column separators
+	for _, w := range widths {
+		totalWidth += w
+	}
+
+	// If too wide, split equally among columns
+	if totalWidth > maxTotalWidth {
+		equal := (maxTotalWidth - (numCols - 1)) / numCols
+		if equal < 3 {
+			equal = 3 // enforce minimum
+		}
+		for i := range widths {
+			widths[i] = equal
+		}
+	}
+
+	return widths
+}
+
+// -------------------- Dynamic Table Builder --------------------
+func BuildDynamicTableWithWrap(data interface{}, highlightIPs bool, maxWidth int) ([]table.Column, []table.Row) {
+	v := reflect.ValueOf(data)
+	if v.Len() == 0 {
+		return nil, nil
+	}
+
+	elemType := v.Index(0).Type()
+	numCols := elemType.NumField()
+	colWidths := ComputeColumnWidths(data, maxWidth)
+
+	// Columns
+	columns := []table.Column{}
+	for i := 0; i < numCols; i++ {
+		columns = append(columns, table.Column{
+			Title: elemType.Field(i).Name,
+			Width: colWidths[i],
+		})
+	}
+
+	// Rows with wrapping
+	rows := []table.Row{}
+	for i := 0; i < v.Len(); i++ {
+		elem := v.Index(i)
+
+		// Wrap each column
+		wrappedCols := make([][]string, numCols)
+		maxLines := 0
+		for j := 0; j < numCols; j++ {
+			fieldVal := fmt.Sprintf("%v", elem.Field(j).Interface())
+			wrappedCols[j] = WrapText(fieldVal, colWidths[j])
+			if len(wrappedCols[j]) > maxLines {
+				maxLines = len(wrappedCols[j])
+			}
+		}
+
+		for line := 0; line < maxLines; line++ {
+			row := table.Row{}
+			for j := 0; j < numCols; j++ {
+				if line < len(wrappedCols[j]) {
+					row = append(row, wrappedCols[j][line])
+				} else {
+					row = append(row, "")
+				}
+			}
+			rows = append(rows, row)
+		}
+	}
+
+	return columns, rows
+}
+
+// -------------------- Show Functions --------------------
+func ShowAzureResultsTable() {
+	m := NewTableModel(azure_results, true, 100)
+	_, err := tea.NewProgram(m).Run()
+	if err != nil {
+		fmt.Println("Error:", err)
 		os.Exit(1)
 	}
 }
 
-func RenderAssetsTableOnce(columns []table.Column, rows []table.Row, height int) {
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithHeight(height),
-	)
-
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("#6e6f6eff")).
-		BorderBottom(true).
-		Bold(true)
-	s.Selected = s.Selected.
-		BorderForeground(lipgloss.Color("#6e6f6eff")).
-		Foreground(lipgloss.Color("#ffffff")).
-		Background(lipgloss.Color("#49306d")).
-		Bold(false)
-	t.SetStyles(s)
-
-	fmt.Println(baseStyle.Render(t.View()))
-}
-
 func ShowPassiveScanResults() {
-	columns := []table.Column{
-		{Title: "Src IP", Width: 15},
-		{Title: "Protocol", Width: 10},
-		{Title: "Src MAC", Width: 20},
-		{Title: "Dst MAC", Width: 20},
-		{Title: "EthType", Width: 12},
+	m := NewTableModel(passive_results, false, 100)
+	_, err := tea.NewProgram(m).Run()
+	if err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
 	}
-
-	var rows []table.Row
-	for _, r := range passive_results {
-		rows = append(rows, table.Row{
-			r.SrcIP,
-			r.Protocol,
-			r.SrcMAC,
-			r.DstMAC,
-			r.EthernetType,
-		})
-	}
-	RenderAssetsTable(columns, rows, 10)
-}
-
-func ShowAzureResultsTable() {
-	columns := []table.Column{
-		{Title: "Field", Width: 20},
-		{Title: "Value", Width: 100},
-	}
-
-	var rows []table.Row
-	for _, r := range azure_results {
-		rows = append(rows, table.Row{"Name         │", r.Name})
-		rows = append(rows, table.Row{"UniqueID     │", r.UniqueID})
-		rows = append(rows, table.Row{"Location     │", r.Location})
-		rows = append(rows, table.Row{"ResourceGroup│", r.ResourceGroup})
-		rows = append(rows, table.Row{"NIC          │", r.NIC})
-		rows = append(rows, table.Row{"MAC          │", r.MAC})
-		rows = append(rows, table.Row{"Subnet       │", r.Subnet})
-		rows = append(rows, table.Row{"Vnet         │", r.Vnet})
-		rows = append(rows, table.Row{
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#7fff00")).Render("IPs"),
-			lipgloss.NewStyle().Width(120).Foreground(lipgloss.Color("#7fff00")).Render(fmt.Sprintf("Private: %s\nPublic: %s", r.PrivateIP, r.PublicIP)),
-		})
-		rows = append(rows, table.Row{"", ""})
-	}
-
-	RenderAssetsTable(columns, rows, 20)
 }
 
 func ShowActiveResults() {
-	columns := []table.Column{
-		{Title: "Interfaces", Width: 15},
-		{Title: "IP Address  │", Width: 20},
-		{Title: "MAC Address", Width: 20},
+	m := NewTableModel(defaultscan_results, false, 100)
+	_, err := tea.NewProgram(m).Run()
+	if err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
 	}
-
-	var rows []table.Row
-	for _, r := range defaultscan_results {
-		rows = append(rows, table.Row{
-			r.Interface,
-			r.Dest_IP,
-			r.Dest_Mac,
-		})
-	}
-
-	RenderAssetsTable(columns, rows, 15)
 }
 
 func ShowNmapScanResults() {
-	columns := []table.Column{
-		{Title: "Port", Width: 8},
-		{Title: "Protocol", Width: 10},
-		{Title: "State", Width: 12},
-		{Title: "Service", Width: 15},
-		{Title: "Product", Width: 25},
+	m := NewTableModel(active_results, false, 100)
+	_, err := tea.NewProgram(m).Run()
+	if err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
 	}
-
-	var rows []table.Row
-	for _, r := range active_results {
-		rows = append(rows, table.Row{
-			r.Port,
-			r.Protocol,
-			r.State,
-			r.Service,
-			r.Product,
-		})
-	}
-	RenderAssetsTableOnce(columns, rows, 15)
 }
