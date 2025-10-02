@@ -338,7 +338,7 @@ func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet, intAdd
 		ProtAddressSize:   4,
 		Operation:         layers.ARPRequest,
 		SourceHwAddress:   []byte(iface.HardwareAddr),
-		SourceProtAddress: []byte(addr.IP),
+		SourceProtAddress: []byte(intAddr.IP),
 		DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
 	}
 	// Set up buffer and options for serialization.
