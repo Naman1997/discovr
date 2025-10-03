@@ -235,6 +235,15 @@ func ShowActiveResults() {
 	}
 }
 
+func ShowIcmpResults() {
+	m := NewTableModel(icmpscan_results, false, 100)
+	_, err := tea.NewProgram(m).Run()
+	if err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
+	}
+}
+
 func ShowNmapScanResults() {
 	m := NewTableModel(active_results, false, 100)
 	_, err := tea.NewProgram(m).Run()
