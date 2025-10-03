@@ -62,6 +62,7 @@ func PassiveExport(path string) {
 
 // Convert Active results
 func ActiveExport(path string, mode bool) {
+	fmt.Println(mode)
 	if path == "" {
 		return
 	}
