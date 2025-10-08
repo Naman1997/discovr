@@ -20,7 +20,7 @@ import (
 
 var NmapVersion string = "7.92"
 
-var active_results []ScanResultActive
+var Active_results []ScanResultActive
 
 type ScanResultActive struct {
 	Port     string
@@ -122,7 +122,7 @@ func NmapScan(targets string, ports string, osDetection bool) {
 				Service:  port.Service.Name,
 				Product:  port.Service.Product,
 			}
-			active_results = append(active_results, result)
+			Active_results = append(Active_results, result)
 		}
 	}
 

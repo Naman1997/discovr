@@ -18,15 +18,14 @@ var baseStyle = lipgloss.NewStyle().
 
 // -------------------- Table Model --------------------
 type tableModel struct {
-	table        table.Model
-	data         interface{}
-	highlightIPs bool
-	width        int
+	table table.Model
+	data  interface{}
+	width int
 }
 
 // Create a new table model from any struct slice
-func NewTableModel(data interface{}, highlightIPs bool, width int) *tableModel {
-	columns, rows := BuildDynamicTableWithWrap(data, highlightIPs, width)
+func NewTableModel(data interface{}, width int) *tableModel {
+	columns, rows := BuildDynamicTableWithWrap(data, width)
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
@@ -48,7 +47,7 @@ func NewTableModel(data interface{}, highlightIPs bool, width int) *tableModel {
 		Bold(false)
 	t.SetStyles(s)
 
-	return &tableModel{table: t, data: data, highlightIPs: highlightIPs, width: width}
+	return &tableModel{table: t, data: data, width: width}
 }
 
 // -------------------- Bubble Tea Methods --------------------
@@ -62,7 +61,7 @@ func (m *tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		columns, rows := BuildDynamicTableWithWrap(m.data, m.highlightIPs, m.width)
+		columns, rows := BuildDynamicTableWithWrap(m.data, m.width)
 		m.table.SetColumns(columns)
 		m.table.SetRows(rows)
 
@@ -156,7 +155,7 @@ func ComputeColumnWidths(data interface{}, maxTotalWidth int) []int {
 }
 
 // -------------------- Dynamic Table Builder --------------------
-func BuildDynamicTableWithWrap(data interface{}, highlightIPs bool, maxWidth int) ([]table.Column, []table.Row) {
+func BuildDynamicTableWithWrap(data interface{}, maxWidth int) ([]table.Column, []table.Row) {
 	v := reflect.ValueOf(data)
 	if v.Len() == 0 {
 		return nil, nil
@@ -207,45 +206,9 @@ func BuildDynamicTableWithWrap(data interface{}, highlightIPs bool, maxWidth int
 	return columns, rows
 }
 
-// -------------------- Show Functions --------------------
-func ShowAzureResultsTable() {
-	m := NewTableModel(azure_results, true, 100)
-	_, err := tea.NewProgram(m).Run()
-	if err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
-	}
-}
-
-func ShowPassiveScanResults() {
-	m := NewTableModel(passive_results, false, 100)
-	_, err := tea.NewProgram(m).Run()
-	if err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
-	}
-}
-
-func ShowActiveResults() {
-	m := NewTableModel(defaultscan_results, false, 100)
-	_, err := tea.NewProgram(m).Run()
-	if err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
-	}
-}
-
-func ShowIcmpResults() {
-	m := NewTableModel(icmpscan_results, false, 100)
-	_, err := tea.NewProgram(m).Run()
-	if err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
-	}
-}
-
-func ShowNmapScanResults() {
-	m := NewTableModel(active_results, false, 100)
+// -------------------- ShowResults Functions --------------------
+func ShowResults[T any](data []T) {
+	m := NewTableModel(data, 100)
 	_, err := tea.NewProgram(m).Run()
 	if err != nil {
 		fmt.Println("Error:", err)

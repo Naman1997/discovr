@@ -16,7 +16,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork"
 )
 
-var azure_results []AzureVMResult
+var Azure_results []AzureVMResult
 
 type AzureVMResult struct {
 	Name          string
@@ -40,8 +40,6 @@ type AzureVMData struct {
 	Vnet     []string
 	PublicIP []string
 }
-
-var vmInfo AzureVMData
 
 type AzureProfile struct {
 	Subscriptions []struct {
@@ -105,7 +103,7 @@ func Azurescan(subIdInput string) {
 		log.Fatal(err)
 	}
 
-	// raises errors if Invalid SubID or no VMs in under Sub
+	// raises errors if Invalid SubID or no VMs in Sub
 	testPager := vmClient.NewListAllPager(nil)
 	if testPager.More() {
 		_, err := testPager.NextPage(ctx)
@@ -237,7 +235,7 @@ func Azurescan(subIdInput string) {
 					fmt.Printf("NIC: %s\n", result.NIC)
 					fmt.Printf("Subnet: %s\n", result.Subnet)
 
-					azure_results = append(azure_results, result)
+					Azure_results = append(Azure_results, result)
 				}
 			}
 

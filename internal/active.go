@@ -31,8 +31,8 @@ import (
 )
 
 var (
-	defaultscan_results []ScanResultDfActive
-	icmpscan_results    []ScanResultICMP
+	Defaultscan_results []ScanResultDfActive
+	Icmpscan_results    []ScanResultICMP
 	seenResults         = make(map[string]bool)
 	mu                  sync.Mutex
 	c                   = make(chan os.Signal, 1)
@@ -143,7 +143,7 @@ func runSweep(ip net.IP, ipNet *net.IPNet, concurrency int, count int, timeout t
 					fmt.Printf("Host alive: %-15s (avg RTT: %v)\n",
 						target, pinger.Statistics().AvgRtt)
 					mu.Lock()
-					icmpscan_results = append(icmpscan_results, ScanResultICMP{
+					Icmpscan_results = append(Icmpscan_results, ScanResultICMP{
 						IP:  target,
 						RTT: pinger.Statistics().AvgRtt,
 					})
@@ -312,7 +312,7 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 
 			} else {
 				seenResults[key] = true
-				defaultscan_results = append(defaultscan_results, result)
+				Defaultscan_results = append(Defaultscan_results, result)
 			}
 			mu.Unlock()
 

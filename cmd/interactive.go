@@ -72,7 +72,11 @@ func RunTui() {
 		)
 		errhandle(form)
 		internal.DefaultScan(netInterface, tCIDR, icmpmode, concurrency, timeout, count)
-		internal.ShowActiveResults()
+		if !icmpmode {
+			internal.ShowResults(internal.Defaultscan_results)
+		} else {
+			internal.ShowResults(internal.Icmpscan_results)
+		}
 		internal.ActiveExport(exportpath, false)
 
 	case "Passive Scan":
@@ -125,7 +129,7 @@ func RunTui() {
 			duration, _ = strconv.Atoi(durationStr)
 		}
 		internal.PassiveScan(selectinterface, duration)
-		internal.ShowPassiveScanResults()
+		internal.ShowResults(internal.Passive_results)
 		internal.PassiveExport(exportpath)
 
 	case "Nmap Scan":
@@ -163,7 +167,7 @@ func RunTui() {
 			ip = "127.0.0.1"
 		}
 		internal.NmapScan(ip, ports, osdet)
-		internal.ShowNmapScanResults()
+		internal.ShowResults(internal.Active_results)
 		internal.NmapExport(exportpath)
 
 	case "Azure Cloud Scan":
@@ -187,7 +191,7 @@ func RunTui() {
 			subID = "default"
 		}
 		internal.Azurescan(subID)
-		internal.ShowAzureResultsTable()
+		internal.ShowResults(internal.Azure_results)
 		internal.AzureExport(exportpath)
 
 	case "AWS Cloud Scan":

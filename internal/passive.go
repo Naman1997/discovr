@@ -16,7 +16,7 @@ import (
 var (
 	sem              = semaphore.NewWeighted(2)
 	discoveredAssets = []string{}
-	passive_results  []ScanResultPassive
+	Passive_results  []ScanResultPassive
 )
 
 // export vars
@@ -96,6 +96,10 @@ func packets(ctx context.Context, sem *semaphore.Weighted, networkInterface stri
 
 // TODO: Wait for SRUM-8 and implement the method to export this information to a csv file
 func printPacketInfo(packet gopacket.Packet, localIPs []string) {
+	if packet == nil {
+		fmt.Printf("\nNil Packet Produced, %v\n", packet)
+		return
+	}
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	ipLayer := packet.Layer(layers.LayerTypeIPv4)
 	if ipLayer != nil {
@@ -122,7 +126,7 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 					DstMAC:       ethernetPacket.DstMAC.String(),
 					EthernetType: ethernetPacket.EthernetType.String(),
 				}
-				passive_results = append(passive_results, result)
+				Passive_results = append(Passive_results, result)
 
 			}
 			fmt.Println("==========================================================================================")

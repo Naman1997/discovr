@@ -24,9 +24,9 @@ var activeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.DefaultScan(networkInterface, targetCIDR, ICMPMode, concurrency, timeout, count)
 		if !ICMPMode {
-			internal.ShowActiveResults()
+			internal.ShowResults(internal.Defaultscan_results)
 		} else {
-			internal.ShowIcmpResults()
+			internal.ShowResults(internal.Icmpscan_results)
 		}
 		internal.ActiveExport(ExportPathActive, ICMPMode)
 	},
