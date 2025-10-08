@@ -97,7 +97,6 @@ func packets(ctx context.Context, sem *semaphore.Weighted, networkInterface stri
 // TODO: Wait for SRUM-8 and implement the method to export this information to a csv file
 func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 	if packet == nil {
-		fmt.Printf("\nNil Packet Produced, %v\n", packet)
 		return
 	}
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
