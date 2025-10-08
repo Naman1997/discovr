@@ -53,8 +53,8 @@ func PassiveExport(path string) {
 	if path == "" {
 		return
 	}
-	rows := make([][]string, len(passive_results))
-	for i, r := range passive_results {
+	rows := make([][]string, len(Passive_results))
+	for i, r := range Passive_results {
 		rows[i] = []string{r.SrcIP, r.Protocol, r.SrcMAC, r.DstMAC, r.EthernetType}
 	}
 	Export(path, header, rows)
@@ -69,8 +69,8 @@ func ActiveExport(path string, mode bool) {
 	if mode {
 		// for icmp scan
 		header := []string{"IP", "RTT"}
-		rows := make([][]string, len(icmpscan_results))
-		for i, r := range icmpscan_results {
+		rows := make([][]string, len(Icmpscan_results))
+		for i, r := range Icmpscan_results {
 			rows[i] = []string{r.IP, r.RTT.String()}
 		}
 		Export(path, header, rows)
@@ -78,8 +78,8 @@ func ActiveExport(path string, mode bool) {
 	} else {
 		// for default scan
 		header := []string{"Interface", "Dest_IP", "Dest_Mac"}
-		rows := make([][]string, len(defaultscan_results))
-		for i, r := range defaultscan_results {
+		rows := make([][]string, len(Defaultscan_results))
+		for i, r := range Defaultscan_results {
 			rows[i] = []string{r.Interface, r.Dest_IP, r.Dest_Mac}
 		}
 		Export(path, header, rows)
@@ -91,8 +91,8 @@ func NmapExport(path string) {
 		return
 	}
 	header := []string{"Port", "Protocol", "State", "Service", "Product"}
-	rows := make([][]string, len(active_results))
-	for i, r := range active_results {
+	rows := make([][]string, len(Active_results))
+	for i, r := range Active_results {
 		rows[i] = []string{r.Port, r.Protocol, r.State, r.Service, r.Product}
 	}
 	Export(path, header, rows)
@@ -117,8 +117,8 @@ func AzureExport(path string) {
 	if path == "" {
 		return
 	}
-	rows := make([][]string, len(azure_results))
-	for i, r := range azure_results {
+	rows := make([][]string, len(Azure_results))
+	for i, r := range Azure_results {
 		rows[i] = []string{r.Name, r.UniqueID, r.Location, r.ResourceGroup, r.MAC, r.Subnet, r.Vnet, r.PrivateIP, r.PublicIP}
 	}
 	Export(path, header, rows)

@@ -17,8 +17,8 @@ var passiveCmd = &cobra.Command{
 	Long:  `Reads incomming packets to determine devices present on the network`,
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.PassiveScan(Interface, ScanTime)
+		internal.ShowResults(internal.Passive_results)
 		internal.PassiveExport(PathPassive)
-
 	},
 }
 
