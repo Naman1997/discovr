@@ -13,7 +13,9 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"log"
@@ -49,6 +51,13 @@ type ScanResultICMP struct {
 	RTT time.Duration
 }
 
+type HostnameResult struct {
+	IP   string
+	PTR  []string // reverse lookup names (may include trailing dot)
+	FQDN string   // chosen FQDN (first PTR with trailing dot trimmed) or empty
+	Err  string   // non-empty on error
+}
+
 // DefaultScan example: you can set desiredCIDR to "" to use interface mask,
 // or "192.168.0.0/28" to request scanning that CIDR (must be inside interface network).
 func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool, concurrency int, timeoutSec int, count int) {
@@ -59,6 +68,10 @@ func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool, conc
 		ArpScan(networkInterface, targetCIDR)
 	}
 
+	results := DiscoverHostnamesFromScanResults(Defaultscan_results, Icmpscan_results, 20, 2)
+	if len(results) > 0 {
+		fmt.Printf("\nDiscovered %d hostnames from scan results:\n", len(results))
+	}
 }
 
 func ArpScan(networkInterface string, targetCIDR string) {
@@ -423,4 +436,111 @@ func alignToNetwork(n *net.IPNet) *net.IPNet {
 	mask := n.Mask
 	ip := n.IP.Mask(mask)
 	return &net.IPNet{IP: ip, Mask: mask}
+}
+
+func DiscoverHostnamesFromScanResults(arp []ScanResultDfActive, icmp []ScanResultICMP, concurrency int, timeoutSec int) []HostnameResult {
+	seen := make(map[string]struct{})
+	var ips []string
+
+	for _, r := range arp {
+		if r.Dest_IP == "" {
+			continue
+		}
+		if _, ok := seen[r.Dest_IP]; !ok {
+			seen[r.Dest_IP] = struct{}{}
+			ips = append(ips, r.Dest_IP)
+		}
+	}
+	for _, r := range icmp {
+		if r.IP == "" {
+			continue
+		}
+		if _, ok := seen[r.IP]; !ok {
+			seen[r.IP] = struct{}{}
+			ips = append(ips, r.IP)
+		}
+	}
+
+	if concurrency <= 0 {
+		concurrency = 10
+	}
+
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+	resChan := make(chan HostnameResult, len(ips))
+
+	resolver := &net.Resolver{PreferGo: false}
+
+	for _, ip := range ips {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(ip string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSec)*time.Second)
+			defer cancel()
+
+			var hr HostnameResult
+			hr.IP = ip
+
+			names, err := resolver.LookupAddr(ctx, ip)
+			if err != nil {
+				hr.Err = err.Error()
+			} else if len(names) > 0 {
+				for i := range names {
+					names[i] = strings.TrimSuffix(names[i], ".")
+				}
+				hr.PTR = names
+				hr.FQDN = names[0]
+			}
+
+			// --- Print immediately ---
+			if hr.FQDN != "" {
+				fmt.Printf("[+] %s -> %s\n", hr.IP, hr.FQDN)
+			} else if hr.Err != "" {
+				fmt.Printf("[-] %s lookup failed: %s\n", hr.IP, hr.Err)
+			} else {
+				fmt.Printf("[*] %s has no PTR record\n", hr.IP)
+			}
+
+			resChan <- hr
+		}(ip)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resChan)
+	}()
+
+	var results []HostnameResult
+	for r := range resChan {
+		results = append(results, r)
+	}
+
+	return results
+}
+
+// SaveHostnamesCSV writes the results to a CSV file with columns: ip,fqdn,ptrs,error
+func SaveHostnamesCSV(filename string, results []HostnameResult) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := csv.NewWriter(f)
+	defer w.Flush()
+
+	if err := w.Write([]string{"ip", "fqdn", "ptrs", "error"}); err != nil {
+		return err
+	}
+
+	for _, r := range results {
+		ptrs := strings.Join(r.PTR, ";")
+		if err := w.Write([]string{r.IP, r.FQDN, ptrs, r.Err}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
