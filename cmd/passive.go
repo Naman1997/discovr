@@ -18,7 +18,8 @@ var passiveCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.PassiveScan(Interface, ScanTime)
 		internal.ShowResults(internal.Passive_results)
-		internal.PassiveExport(PathPassive)
+		internal.ExportCSV(PathPassive, internal.Passive_results)
+
 	},
 }
 
