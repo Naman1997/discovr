@@ -61,11 +61,15 @@ type HostnameResult struct {
 // DefaultScan example: you can set desiredCIDR to "" to use interface mask,
 // or "192.168.0.0/28" to request scanning that CIDR (must be inside interface network).
 func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool, concurrency int, timeoutSec int, count int) {
+	netiface, err := net.InterfaceByName(networkInterface)
+	if err != nil {
+		panic(err)
+	}
 
 	if ICMPMode {
-		ICMPScan(targetCIDR, concurrency, timeoutSec, count)
+		ICMPScan(netiface, targetCIDR, concurrency, timeoutSec, count)
 	} else {
-		ArpScan(networkInterface, targetCIDR)
+		ArpScan(netiface, targetCIDR, concurrency)
 	}
 
 	results := DiscoverHostnamesFromScanResults(Defaultscan_results, Icmpscan_results, 20, 2)
@@ -74,7 +78,7 @@ func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool, conc
 	}
 }
 
-func ArpScan(networkInterface string, targetCIDR string) {
+func ArpScan(networkInterface *net.Interface, targetCIDR string, concurrency int) {
 	fmt.Println("Starting ARP scan...")
 	var wg sync.WaitGroup
 	// Find all devices
@@ -83,25 +87,26 @@ func ArpScan(networkInterface string, targetCIDR string) {
 		panic(err)
 	}
 
-	netiface, err := net.InterfaceByName(networkInterface)
-	if err != nil {
-		panic(err)
-	}
 	wg.Add(1)
 	go func(netiface net.Interface) {
 		defer wg.Done()
-		if err := scan(&netiface, &devices, targetCIDR); err != nil {
+		if err := scan(&netiface, &devices, targetCIDR, concurrency); err != nil {
 			log.Printf("interface %v: %v", netiface.Name, err)
 		}
-	}(*netiface)
+	}(*networkInterface)
 
 	wg.Wait()
 }
 
-func ICMPScan(targetCIDR string, concurrency int, timeoutSec int, count int) {
-	if targetCIDR == "" {
-		fmt.Println("No CIDR provided for ICMP scan, please provide a valid CIDR using the -c flag.")
+func ICMPScan(netiface *net.Interface, targetCIDR string, concurrency int, timeoutSec int, count int) {
+	addr := parseNetIP(netiface)
+	if addr == nil {
+		fmt.Println("No valid IPv4 address found on the interface.")
 		return
+	}
+
+	if targetCIDR == "" {
+		targetCIDR = addr.String()
 	}
 
 	// Handle Ctrl+C
@@ -190,47 +195,9 @@ func pingHost(target string, count int, timeout time.Duration) {
 	}
 }
 
-// incIP increments an IP address by 1
-func incIP(ip net.IP) {
-	for j := len(ip) - 1; j >= 0; j-- {
-		ip[j]++
-		if ip[j] > 0 {
-			break
-		}
-	}
-}
-
-// isBroadcast checks if IP is the broadcast address of the subnet
-func isBroadcast(ipStr string, ipNet *net.IPNet) bool {
-	ip := net.ParseIP(ipStr).To4()
-	broadcast := make(net.IP, len(ip))
-	for i := range ip {
-		broadcast[i] = ipNet.IP[i] | ^ipNet.Mask[i]
-	}
-	return ip.Equal(broadcast)
-}
-
 // scan now accepts targetCIDR. If targetCIDR == "" it uses interface network as before.
-func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string) error {
-
-	// find interface IPv4 (same as before)
-	var addr *net.IPNet
-	if addrs, err := iface.Addrs(); err != nil {
-		return err
-	} else {
-		for _, a := range addrs {
-			if ipnet, ok := a.(*net.IPNet); ok {
-				if ip4 := ipnet.IP.To4(); ip4 != nil {
-					addr = &net.IPNet{
-						IP:   ip4,
-						Mask: ipnet.Mask[len(ipnet.Mask)-4:],
-					}
-					break
-				}
-			}
-		}
-	}
-	// addr is connected IPv4 network from interface
+func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string, concurrency int) error {
+	addr := parseNetIP(iface)
 	if addr == nil {
 		return errors.New("no good IP network found")
 	} else if addr.IP[0] == 127 {
@@ -283,7 +250,7 @@ func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string) er
 	defer close(stop)
 
 	// write ARP only for scanNet (which may be the requested /28, /30, or the full iface /24)
-	if err := writeARP(handle, iface, scanNet, addr); err != nil {
+	if err := writeARP(handle, iface, scanNet, addr, concurrency); err != nil {
 		return err
 	}
 
@@ -337,105 +304,86 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 
 // writeARP writes an ARP request for each address on our local network to the
 // pcap handle.
-func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet, intAddr *net.IPNet) error {
-	// Set up all the layers' fields we can.
-	eth := layers.Ethernet{
-		SrcMAC:       iface.HardwareAddr,
-		DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-		EthernetType: layers.EthernetTypeARP,
-	}
-	arp := layers.ARP{
-		AddrType:          layers.LinkTypeEthernet,
-		Protocol:          layers.EthernetTypeIPv4,
-		HwAddressSize:     6,
-		ProtAddressSize:   4,
-		Operation:         layers.ARPRequest,
-		SourceHwAddress:   []byte(iface.HardwareAddr),
-		SourceProtAddress: []byte(intAddr.IP),
-		DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
-	}
-	// Set up buffer and options for serialization.
-	buf := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
-	}
-	// Send one packet for every address.
+// writeARPConcurrent writes ARP requests concurrently (bounded by `concurrency`).
+// It is a drop-in replacement for writeARP but faster for large subnets.
+func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet, intAddr *net.IPNet, concurrency int) error {
+	// if concurrency <= 0 {
+	// 	concurrency = 64 // sensible default, tune as needed
+	// }
+
+	// Mutex to protect WritePacketData in case the pcap handle implementation is not goroutine-safe.
+	var writeMu sync.Mutex
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+	errCh := make(chan error, 1) // capture first error
+
+	// iterate all IPs to scan
 	for _, ip := range ips(addr, intAddr) {
-		arp.DstProtAddress = []byte(ip)
-		gopacket.SerializeLayers(buf, opts, &eth, &arp)
-		if err := handle.WritePacketData(buf.Bytes()); err != nil {
-			return err
-		}
+		// prepare per-ip values early
+		ip := ip // capture loop variable
+
+		// skip same as before (network/broadcast etc handled in ips)
+		sem <- struct{}{}
+		wg.Add(1)
+
+		go func(targetIP net.IP) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			// Build ethernet + arp into a fresh buffer per goroutine (no shared buffer)
+			eth := layers.Ethernet{
+				SrcMAC:       iface.HardwareAddr,
+				DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+				EthernetType: layers.EthernetTypeARP,
+			}
+			arp := layers.ARP{
+				AddrType:          layers.LinkTypeEthernet,
+				Protocol:          layers.EthernetTypeIPv4,
+				HwAddressSize:     6,
+				ProtAddressSize:   4,
+				Operation:         layers.ARPRequest,
+				SourceHwAddress:   []byte(iface.HardwareAddr),
+				SourceProtAddress: []byte(intAddr.IP),
+				DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
+				DstProtAddress:    []byte(targetIP.To4()),
+			}
+
+			buf := gopacket.NewSerializeBuffer()
+			opts := gopacket.SerializeOptions{
+				FixLengths:       true,
+				ComputeChecksums: true,
+			}
+			if err := gopacket.SerializeLayers(buf, opts, &eth, &arp); err != nil {
+				select {
+				case errCh <- err:
+				default:
+				}
+				return
+			}
+			out := buf.Bytes()
+
+			// Serialize writes with mutex to be safe on non-threadsafe pcap handles
+			writeMu.Lock()
+			if err := handle.WritePacketData(out); err != nil {
+				writeMu.Unlock()
+				select {
+				case errCh <- err:
+				default:
+				}
+				return
+			}
+			writeMu.Unlock()
+		}(ip)
+	}
+
+	// wait for all goroutines
+	wg.Wait()
+	close(errCh)
+	// if any error occurred, return first one
+	if err, ok := <-errCh; ok {
+		return err
 	}
 	return nil
-}
-
-// ips is a simple and not very good method for getting all IPv4 addresses from a
-// net.IPNet.  It returns all IPs it can over the channel it sends back, closing
-// the channel when done.
-func ips(n *net.IPNet, o *net.IPNet) (out []net.IP) {
-
-	// n and o are different
-
-	orinum := binary.BigEndian.Uint32([]byte(o.IP))
-	orimask := binary.BigEndian.Uint32([]byte(o.Mask))
-	oribroadcast := orinum | ^orimask
-	orinetwork := orinum & orimask
-
-	num := binary.BigEndian.Uint32([]byte(n.IP))
-	mask := binary.BigEndian.Uint32([]byte(n.Mask))
-	network := num & mask
-	broadcast := network | ^mask
-
-	for ip := network; ip <= broadcast; ip++ {
-		if ip == orinetwork || ip == oribroadcast {
-			continue // skip network and broadcast addresses
-		}
-		var buf [4]byte
-		binary.BigEndian.PutUint32(buf[:], ip)
-		out = append(out, net.IP(buf[:]))
-	}
-
-	return
-}
-
-// ipToUint32 converts a 4-byte IPv4 to uint32.
-func ipToUint32(ip net.IP) uint32 {
-	return binary.BigEndian.Uint32([]byte(ip.To4()))
-}
-
-// networkRange returns network and broadcast (uint32) for a net.IPNet
-func networkRange(n *net.IPNet) (network uint32, broadcast uint32) {
-	num := ipToUint32(n.IP)
-	mask := ipToUint32(net.IP(n.Mask)) // n.Mask is 4 bytes for IPv4
-	network = num & mask
-	broadcast = network | ^mask
-	return
-}
-
-// isSubnetWithin returns true if targetNet range is fully inside ifaceNet range.
-func isSubnetWithin(ifaceNet, targetNet *net.IPNet) bool {
-	if ifaceNet == nil || targetNet == nil {
-		return false
-	}
-	if ifaceNet.IP.To4() == nil || targetNet.IP.To4() == nil {
-		return false
-	}
-	ifaceNetStart, ifaceNetEnd := networkRange(ifaceNet)
-	targetStart, targetEnd := networkRange(targetNet)
-	// target start must be >= iface start and target end <= iface end
-	return targetStart >= ifaceNetStart && targetEnd <= ifaceNetEnd
-}
-
-// alignToNetwork returns targetNet with IP aligned to its network address (useful after parsing).
-func alignToNetwork(n *net.IPNet) *net.IPNet {
-	if n == nil {
-		return nil
-	}
-	mask := n.Mask
-	ip := n.IP.Mask(mask)
-	return &net.IPNet{IP: ip, Mask: mask}
 }
 
 func DiscoverHostnamesFromScanResults(arp []ScanResultDfActive, icmp []ScanResultICMP, concurrency int, timeoutSec int) []HostnameResult {
@@ -521,6 +469,117 @@ func DiscoverHostnamesFromScanResults(arp []ScanResultDfActive, icmp []ScanResul
 	return results
 }
 
+//Helper functions for ARP
+
+// ips is a simple and not very good method for getting all IPv4 addresses from a
+// net.IPNet.  It returns all IPs it can over the channel it sends back, closing
+// the channel when done.
+func ips(n *net.IPNet, o *net.IPNet) (out []net.IP) {
+
+	// n and o are different
+
+	orinum := binary.BigEndian.Uint32([]byte(o.IP))
+	orimask := binary.BigEndian.Uint32([]byte(o.Mask))
+	oribroadcast := orinum | ^orimask
+	orinetwork := orinum & orimask
+
+	num := binary.BigEndian.Uint32([]byte(n.IP))
+	mask := binary.BigEndian.Uint32([]byte(n.Mask))
+	network := num & mask
+	broadcast := network | ^mask
+
+	for ip := network; ip <= broadcast; ip++ {
+		if ip == orinetwork || ip == oribroadcast {
+			continue // skip network and broadcast addresses
+		}
+		var buf [4]byte
+		binary.BigEndian.PutUint32(buf[:], ip)
+		out = append(out, net.IP(buf[:]))
+	}
+
+	return
+}
+
+// ipToUint32 converts a 4-byte IPv4 to uint32.
+func ipToUint32(ip net.IP) uint32 {
+	return binary.BigEndian.Uint32([]byte(ip.To4()))
+}
+
+// networkRange returns network and broadcast (uint32) for a net.IPNet
+func networkRange(n *net.IPNet) (network uint32, broadcast uint32) {
+	num := ipToUint32(n.IP)
+	mask := ipToUint32(net.IP(n.Mask)) // n.Mask is 4 bytes for IPv4
+	network = num & mask
+	broadcast = network | ^mask
+	return
+}
+
+// isSubnetWithin returns true if targetNet range is fully inside ifaceNet range.
+func isSubnetWithin(ifaceNet, targetNet *net.IPNet) bool {
+	if ifaceNet == nil || targetNet == nil {
+		return false
+	}
+	if ifaceNet.IP.To4() == nil || targetNet.IP.To4() == nil {
+		return false
+	}
+	ifaceNetStart, ifaceNetEnd := networkRange(ifaceNet)
+	targetStart, targetEnd := networkRange(targetNet)
+	// target start must be >= iface start and target end <= iface end
+	return targetStart >= ifaceNetStart && targetEnd <= ifaceNetEnd
+}
+
+// alignToNetwork returns targetNet with IP aligned to its network address (useful after parsing).
+func alignToNetwork(n *net.IPNet) *net.IPNet {
+	if n == nil {
+		return nil
+	}
+	mask := n.Mask
+	ip := n.IP.Mask(mask)
+	return &net.IPNet{IP: ip, Mask: mask}
+}
+
+func parseNetIP(iface *net.Interface) *net.IPNet {
+	var addr *net.IPNet
+	if addrs, err := iface.Addrs(); err != nil {
+		return nil
+	} else {
+		for _, a := range addrs {
+			if ipnet, ok := a.(*net.IPNet); ok {
+				if ip4 := ipnet.IP.To4(); ip4 != nil {
+					addr = &net.IPNet{
+						IP:   ip4,
+						Mask: ipnet.Mask[len(ipnet.Mask)-4:],
+					}
+					break
+				}
+			}
+		}
+	}
+	return addr
+}
+
+// Helper functions for ICMP
+// incIP increments an IP address by 1
+func incIP(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
+}
+
+// isBroadcast checks if IP is the broadcast address of the subnet
+func isBroadcast(ipStr string, ipNet *net.IPNet) bool {
+	ip := net.ParseIP(ipStr).To4()
+	broadcast := make(net.IP, len(ip))
+	for i := range ip {
+		broadcast[i] = ipNet.IP[i] | ^ipNet.Mask[i]
+	}
+	return ip.Equal(broadcast)
+}
+
+// Helper functions for reverse DNS and saving results
 // SaveHostnamesCSV writes the results to a CSV file with columns: ip,fqdn,ptrs,error
 func SaveHostnamesCSV(filename string, results []HostnameResult) error {
 	f, err := os.Create(filename)
