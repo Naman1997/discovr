@@ -302,16 +302,10 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 	}
 }
 
-// writeARP writes an ARP request for each address on our local network to the
-// pcap handle.
-// writeARPConcurrent writes ARP requests concurrently (bounded by `concurrency`).
+// writeARP writes an ARP request for each address on our local network to thepcap handle.
 // It is a drop-in replacement for writeARP but faster for large subnets.
 func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet, intAddr *net.IPNet, concurrency int) error {
-	// if concurrency <= 0 {
-	// 	concurrency = 64 // sensible default, tune as needed
-	// }
 
-	// Mutex to protect WritePacketData in case the pcap handle implementation is not goroutine-safe.
 	var writeMu sync.Mutex
 	sem := make(chan struct{}, concurrency)
 	var wg sync.WaitGroup
