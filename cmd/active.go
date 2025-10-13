@@ -25,10 +25,11 @@ var activeCmd = &cobra.Command{
 		internal.DefaultScan(networkInterface, targetCIDR, ICMPMode, concurrency, timeout, count)
 		if !ICMPMode {
 			internal.ShowResults(internal.Defaultscan_results)
+			internal.ExportCSV(ExportPathActive, internal.Defaultscan_results)
 		} else {
 			internal.ShowResults(internal.Icmpscan_results)
+			internal.ExportCSV(ExportPathActive, internal.Icmpscan_results)
 		}
-		internal.ActiveExport(ExportPathActive, ICMPMode)
 	},
 }
 

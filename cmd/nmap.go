@@ -19,7 +19,7 @@ var nmapCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.NmapScan(Target, Ports, OsDetection)
 		internal.ShowResults(internal.Active_results)
-		internal.NmapExport(PathActive)
+		internal.ExportCSV(PathActive, internal.Active_results)
 	},
 }
 
