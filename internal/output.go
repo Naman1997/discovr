@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 )
 
-func Export(filePath string, header []string, rows [][]string) error {
+func ExportCSV[T any](filePath string, data []T) error {
+	if filePath == "" {
+		return nil
+	}
+
 	if filepath.Ext(filePath) != ".csv" {
 		filePath = filePath + ".csv"
 		fmt.Println("\nExport path did not have .csv extension, saving as:", filePath)
@@ -34,105 +39,29 @@ func Export(filePath string, header []string, rows [][]string) error {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	if err := writer.Write(header); err != nil {
-		return fmt.Errorf("error writing header: %v", err)
+	v := reflect.ValueOf(data)
+	elemType := reflect.TypeOf(data).Elem()
+
+	var headers []string
+	for i := 0; i < elemType.NumField(); i++ {
+		headers = append(headers, elemType.Field(i).Name)
+	}
+	if err := writer.Write(headers); err != nil {
+		return fmt.Errorf("failed to write header: %w", err)
 	}
 
-	for _, row := range rows {
-		if err := writer.Write(row); err != nil {
-			return fmt.Errorf("error writing row: %v", err)
+	for i := 0; i < v.Len(); i++ {
+		elem := v.Index(i)
+		var record []string
+		for j := 0; j < elem.NumField(); j++ {
+			val := elem.Field(j).Interface()
+			record = append(record, fmt.Sprint(val))
+		}
+		if err := writer.Write(record); err != nil {
+			return fmt.Errorf("failed to write record: %w", err)
 		}
 	}
+
 	fmt.Printf("Saved to: %v\n", filePath)
 	return nil
-}
-
-// Convert Passive results
-func PassiveExport(path string) {
-	header := []string{"Source_IP", "Protocol", "Source_MAC", "Destination_Mac", "Ethernet_Type"}
-	if path == "" {
-		return
-	}
-	rows := make([][]string, len(Passive_results))
-	for i, r := range Passive_results {
-		rows[i] = []string{r.SrcIP, r.Protocol, r.SrcMAC, r.DstMAC, r.EthernetType}
-	}
-	Export(path, header, rows)
-}
-
-// Convert Active results
-func ActiveExport(path string, mode bool) {
-	if path == "" {
-		return
-	}
-	//Changes for scrum-136
-	if mode {
-		// for icmp scan
-		header := []string{"IP", "RTT"}
-		rows := make([][]string, len(Icmpscan_results))
-		for i, r := range Icmpscan_results {
-			rows[i] = []string{r.IP, r.RTT.String()}
-		}
-		Export(path, header, rows)
-		return
-	} else {
-		// for default scan
-		header := []string{"Interface", "Dest_IP", "Dest_Mac"}
-		rows := make([][]string, len(Defaultscan_results))
-		for i, r := range Defaultscan_results {
-			rows[i] = []string{r.Interface, r.Dest_IP, r.Dest_Mac}
-		}
-		Export(path, header, rows)
-	}
-}
-
-func NmapExport(path string) {
-	if path == "" {
-		return
-	}
-	header := []string{"Port", "Protocol", "State", "Service", "Product"}
-	rows := make([][]string, len(Active_results))
-	for i, r := range Active_results {
-		rows[i] = []string{r.Port, r.Protocol, r.State, r.Service, r.Product}
-	}
-	Export(path, header, rows)
-}
-
-// Convert AWS results
-func AwsExport(path string) {
-	header := []string{"InstanceId", "PublicIp", "PrivateIPs", "MacAddress", "VpcId", "SubnetId", "Hostname", "Region"}
-	if path == "" {
-		return
-	}
-	rows := make([][]string, len(aws_results))
-	for i, r := range aws_results {
-		rows[i] = []string{r.InstanceId, r.PublicIp, r.PrivateIPs, r.MacAddress, r.VpcId, r.SubnetId, r.Hostname, r.Region}
-	}
-	Export(path, header, rows)
-}
-
-// Convert Azure results
-func AzureExport(path string) {
-	header := []string{"VM Name", "ID", "Location", "Resource Group", "NIC", "MAC", "SubnetID", "Vnet", "PrivateIP", "Public IP"}
-	if path == "" {
-		return
-	}
-	rows := make([][]string, len(Azure_results))
-	for i, r := range Azure_results {
-		rows[i] = []string{r.Name, r.UniqueID, r.Location, r.ResourceGroup, r.MAC, r.Subnet, r.Vnet, r.PrivateIP, r.PublicIP}
-	}
-	Export(path, header, rows)
-}
-
-// Convert GCP results
-func GcpExport(path string) {
-	header := []string{"ProjectId", "InstanceId", "InstanceName", "Hostname", "OS", "Zone", "InterfaceName", "InternalIp", "ExternalIps", "VPC", "Subnet"}
-	if path == "" {
-		return
-	}
-	rows := make([][]string, len(gcp_results))
-	for i, r := range gcp_results {
-		rows[i] = []string{r.ProjectId, r.InstanceId, r.InstanceName, r.Hostname, r.OsType, r.Zone, r.InterfaceName, r.InternalIP, r.ExternalIPs, r.VPC, r.Subnet}
-	}
-	Export(path, header, rows)
 }
