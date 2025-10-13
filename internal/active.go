@@ -44,11 +44,13 @@ type ScanResultDfActive struct {
 	Interface string
 	Dest_IP   string
 	Dest_Mac  string
+	Hostname  string
 }
 
 type ScanResultICMP struct {
-	IP  string
-	RTT time.Duration
+	IP       string
+	RTT      time.Duration
+	Hostname string
 }
 
 type HostnameResult struct {
@@ -437,7 +439,6 @@ func DiscoverHostnamesFromScanResults(arp []ScanResultDfActive, icmp []ScanResul
 				hr.FQDN = names[0]
 			}
 
-			// --- Print immediately ---
 			if hr.FQDN != "" {
 				fmt.Printf("[+] %s -> %s\n", hr.IP, hr.FQDN)
 			} else if hr.Err != "" {
@@ -455,12 +456,41 @@ func DiscoverHostnamesFromScanResults(arp []ScanResultDfActive, icmp []ScanResul
 		close(resChan)
 	}()
 
+	// Store hostname results
 	var results []HostnameResult
 	for r := range resChan {
 		results = append(results, r)
 	}
 
+	// --- Merge results back into ARP and ICMP ---
+	mergeHostnamesIntoResults(&arp, &icmp, results)
+
 	return results
+}
+
+func mergeHostnamesIntoResults(arp *[]ScanResultDfActive, icmp *[]ScanResultICMP, hostnames []HostnameResult) {
+	hmap := make(map[string]string)
+	for _, h := range hostnames {
+		if h.FQDN != "" {
+			hmap[h.IP] = h.FQDN
+		}
+	}
+
+	// Update ARP results
+	for i := range *arp {
+		ip := (*arp)[i].Dest_IP
+		if host, ok := hmap[ip]; ok {
+			(*arp)[i].Hostname = host
+		}
+	}
+
+	// Update ICMP results
+	for i := range *icmp {
+		ip := (*icmp)[i].IP
+		if host, ok := hmap[ip]; ok {
+			(*icmp)[i].Hostname = host
+		}
+	}
 }
 
 //Helper functions for ARP
