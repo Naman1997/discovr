@@ -1,7 +1,5 @@
 # Discovr — User Documentation
 
----
-
 ## Overview
 
 Discovr is a portable asset discovery CLI tool for scanning on-premise and cloud environments.
