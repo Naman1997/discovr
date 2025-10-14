@@ -59,18 +59,13 @@ discovr tui
 
 **Description**
 
-Launches a TUI that guides you through Active, Passive, Nmap, AWS, or Azure scans with interactive prompts and validation.
+Launches an interactive TUI that guides you through scans with interactive prompts and validation.
 
 **Example**
 
 ```bash
 discovr tui
 ```
-
-**Notes**
-
-* Good for users who prefer prompts over flags.
-* Validates IPs, ports, and subscription IDs.
 
 ---
 
