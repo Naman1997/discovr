@@ -6,14 +6,6 @@ Discovr is a portable asset discovery CLI tool for scanning on-premise and cloud
 It supports active, passive, and Nmap network discovery as well as cloud inventory for AWS, Azure, and GCP.
 Use the TUI for a guided, interactive experience.
 
-Run:
-
-```bash
-discovr -h
-```
-
-to list available commands.
-
 ---
 
 ## 1. Getting Started
