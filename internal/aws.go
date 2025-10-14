@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
-var aws_results []AwsScanResult
+var Aws_results []AwsScanResult
 
 type AwsScanResult struct {
 	InstanceId string
@@ -161,7 +161,7 @@ func ProcessInstancesForRegion(cfg aws.Config, regionName string) {
 							Hostname:   hostname,
 							Region:     regionName,
 						}
-						aws_results = append(aws_results, result)
+						Aws_results = append(Aws_results, result)
 					}
 				}
 			}

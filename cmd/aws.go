@@ -22,7 +22,7 @@ var awsCmd = &cobra.Command{
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.AwsScan(Region, Config, Credential, Profile)
-		internal.AwsExport(AwsCsvExportPath)
+		internal.ExportCSV(AwsCsvExportPath, internal.Aws_results)
 	},
 }
 

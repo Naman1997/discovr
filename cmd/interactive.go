@@ -74,10 +74,11 @@ func RunTui() {
 		internal.DefaultScan(netInterface, tCIDR, icmpmode, concurrency, timeout, count)
 		if !icmpmode {
 			internal.ShowResults(internal.Defaultscan_results)
+			internal.ExportCSV(exportpath, internal.Defaultscan_results)
 		} else {
 			internal.ShowResults(internal.Icmpscan_results)
+			internal.ExportCSV(exportpath, internal.Icmpscan_results)
 		}
-		internal.ActiveExport(exportpath, false)
 
 	case "Passive Scan":
 		var options []huh.Option[string]
@@ -130,7 +131,7 @@ func RunTui() {
 		}
 		internal.PassiveScan(selectinterface, duration)
 		internal.ShowResults(internal.Passive_results)
-		internal.PassiveExport(exportpath)
+		internal.ExportCSV(exportpath, internal.Passive_results)
 
 	case "Nmap Scan":
 		pathplaceholder := GetOsPathPlaceholder()
@@ -168,7 +169,7 @@ func RunTui() {
 		}
 		internal.NmapScan(ip, ports, osdet)
 		internal.ShowResults(internal.Active_results)
-		internal.NmapExport(exportpath)
+		internal.ExportCSV(exportpath, internal.Active_results)
 
 	case "Azure Cloud Scan":
 		pathplaceholder := GetOsPathPlaceholder()
@@ -192,7 +193,7 @@ func RunTui() {
 		}
 		internal.Azurescan(subID)
 		internal.ShowResults(internal.Azure_results)
-		internal.AzureExport(exportpath)
+		internal.ExportCSV(exportpath, internal.Azure_results)
 
 	case "AWS Cloud Scan":
 		var regionOptions []huh.Option[string]
@@ -221,6 +222,6 @@ func RunTui() {
 		)
 		errhandle(form)
 		internal.AwsScan(regionselect, []string{}, []string{}, "")
-		internal.AwsExport(exportpath)
+		internal.ExportCSV(exportpath, internal.Aws_results)
 	}
 }

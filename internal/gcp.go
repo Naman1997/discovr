@@ -12,7 +12,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-var gcp_results []GcpScanResult
+var Gcp_results []GcpScanResult
 
 type GcpScanResult struct {
 	ProjectId     string
@@ -192,7 +192,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 					VPC:           vpcID,
 					Subnet:        subnetID,
 				}
-				gcp_results = append(gcp_results, result)
+				Gcp_results = append(Gcp_results, result)
 			}
 		}
 	}
