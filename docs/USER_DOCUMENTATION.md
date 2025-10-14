@@ -79,6 +79,7 @@ discovr active [flags]
 ```
 
 **Description**
+
 Sends probes across a CIDR range to discover live hosts (IP addresses).
 By default, uses ARP on a specified interface; optionally uses ICMP pings.
 Note: This command does **not** find MAC addresses.
@@ -116,6 +117,7 @@ discovr passive [flags]
 ```
 
 **Description**
+
 Listens to traffic on an interface (no active probes) and identifies devices seen on the network.
 
 **Flags**
@@ -147,6 +149,7 @@ discovr nmap [flags]
 ```
 
 **Description**
+
 Runs an Nmap scan against a target IP/CIDR, optionally enabling OS detection.
 
 **Flags**
@@ -176,6 +179,7 @@ discovr aws [flags]
 ```
 
 **Description**
+
 Lists EC2 instances in your AWS account and exports results.
 
 **Flags**
@@ -206,6 +210,7 @@ discovr azure [flags]
 ```
 
 **Description**
+
 Discovers assets in an Azure subscription and exports to CSV.
 
 **Flags**
@@ -233,6 +238,7 @@ discovr gcp [flags]
 ```
 
 **Description**
+
 Lists VM instances in specified GCP projects and exports results.
 
 **Flags**
