@@ -86,7 +86,6 @@ discovr active [flags]
 
 Sends probes across a CIDR range to discover live hosts (IP addresses).
 By default, uses ARP on a specified interface; optionally uses ICMP pings.
-Note: This command does **not** find MAC addresses.
 
 **Flags**
 
