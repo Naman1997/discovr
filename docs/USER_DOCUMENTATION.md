@@ -34,7 +34,7 @@ make
 git clone https://github.com/Naman1997/discovr.git
 cd discovr
 build.bat
-discovr.exe -h
+.\discovr.exe -h
 ```
 
 ---
