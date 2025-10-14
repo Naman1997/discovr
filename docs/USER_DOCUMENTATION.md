@@ -54,6 +54,7 @@ discovr tui
 ```
 
 **Description**
+
 Launches a TUI that guides you through Active, Passive, Nmap, AWS, or Azure scans with interactive prompts and validation.
 
 **Example**
