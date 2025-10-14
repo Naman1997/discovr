@@ -1,4 +1,4 @@
-# Discovr — User Documentation
+# Discovr
 
 ## Overview
 
