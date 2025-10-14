@@ -205,7 +205,7 @@ discovr aws -r ap-southeast-2 -c ~/.aws/config -x ~/.aws/credentials -e ./out/ec
 
 ---
 
-### `azure` — Azure subscription scan
+### `azure` — Azure VM scan
 
 **Synopsis**
 
@@ -215,7 +215,7 @@ discovr azure [flags]
 
 **Description**
 
-Discovers assets in an Azure subscription and exports to CSV.
+Discovers VMs in an Azure subscription and exports to CSV.
 
 **Flags**
 
