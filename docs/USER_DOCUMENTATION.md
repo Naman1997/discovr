@@ -61,12 +61,6 @@ discovr tui
 
 Launches an interactive TUI that guides you through scans with interactive prompts and validation.
 
-**Example**
-
-```bash
-discovr tui
-```
-
 ---
 
 ### `active` — Active network scan
