@@ -49,7 +49,7 @@ build.bat
 
 ---
 
-### `tui` — Interactive Text User Interface
+### `tui` - Interactive Text User Interface
 
 **Synopsis**
 
@@ -63,7 +63,7 @@ Launches an interactive TUI that guides you through scans with interactive promp
 
 ---
 
-### `active` — Active network scan
+### `active` - Active network scan
 
 **Synopsis**
 
@@ -80,13 +80,13 @@ By default, uses ARP on a specified interface; optionally uses ICMP pings.
 
 |            Flag | Short | Type   | Default | Description                                            |
 | --------------: | ----: | ------ | ------: | ------------------------------------------------------ |
-|   `--interface` |  `-i` | string |       — | **Required** network interface for ARP (e.g., `eth0`). |
-|        `--cidr` |  `-r` | string |       — | Target CIDR to scan (e.g., `192.168.1.0/24`).          |
+|   `--interface` |  `-i` | string |       - | **Required** network interface for ARP (e.g., `eth0`). |
+|        `--cidr` |  `-r` | string |       - | Target CIDR to scan (e.g., `192.168.1.0/24`).          |
 |        `--mode` |  `-m` | bool   | `false` | Use ICMP echo requests instead of ARP.                 |
 | `--concurrency` |  `-p` | int    |    `50` | Number of concurrent workers (ICMP).                   |
 |     `--timeout` |  `-t` | int    |     `2` | Timeout (sec) for ICMP replies.                        |
 |       `--count` |  `-c` | int    |     `1` | Number of ICMP requests per host.                      |
-|      `--export` |  `-e` | string |       — | Export results to CSV.                                 |
+|      `--export` |  `-e` | string |       - | Export results to CSV.                                 |
 
 **Examples**
 
@@ -100,7 +100,7 @@ discovr active -m -r 10.10.0.0/16 -p 200 -t 2 -c 3 -e ./out/icmp.csv
 
 ---
 
-### `passive` — Passive network scan
+### `passive` - Passive network scan
 
 **Synopsis**
 
@@ -118,7 +118,7 @@ Listens to traffic on an interface (no active probes) and identifies devices see
 | ------------: | ----: | ------ | ------: | -------------------------------------- |
 | `--interface` |  `-i` | string |   `any` | Interface to listen on (e.g., `eth0`). |
 |  `--duration` |  `-d` | int    |    `10` | Listening duration in seconds.         |
-|    `--export` |  `-e` | string |       — | Export results to CSV.                 |
+|    `--export` |  `-e` | string |       - | Export results to CSV.                 |
 
 **Examples**
 
@@ -132,7 +132,7 @@ discovr passive -e ./out/devices.csv
 
 ---
 
-### `nmap` — Nmap scan wrapper
+### `nmap` - Nmap scan wrapper
 
 **Synopsis**
 
@@ -151,7 +151,7 @@ Runs an Nmap scan against a target IP/CIDR, optionally enabling OS detection.
 |    `--target` |  `-t` | string | `127.0.0.1` | Target IP or CIDR.                          |
 |     `--ports` |  `-p` | string |  (top 1000) | Ports to scan (e.g., `80,443` or `22-100`). |
 | `--detect-os` |  `-d` | bool   |     `false` | Enable OS detection (may require sudo).     |
-|    `--export` |  `-e` | string |           — | Export results to CSV.                      |
+|    `--export` |  `-e` | string |           - | Export results to CSV.                      |
 
 **Examples**
 
@@ -162,7 +162,7 @@ discovr nmap -t 10.10.10.10 -p 80,443 -d -e ./out/nmap.csv
 
 ---
 
-### `aws` — AWS EC2 inventory
+### `aws` - AWS EC2 inventory
 
 **Synopsis**
 
@@ -178,11 +178,11 @@ Lists EC2 instances in your AWS account and exports results.
 
 |           Flag | Short | Type     | Default | Description                             |
 | -------------: | ----: | -------- | ------: | --------------------------------------- |
-|     `--region` |  `-r` | string   |       — | Region filter (e.g., `ap-southeast-2`). |
-|    `--profile` |  `-p` | string   |       — | AWS profile name.                       |
+|     `--region` |  `-r` | string   |       - | Region filter (e.g., `ap-southeast-2`). |
+|    `--profile` |  `-p` | string   |       - | AWS profile name.                       |
 |     `--config` |  `-c` | string[] |    `[]` | Custom AWS config file(s).              |
 | `--credential` |  `-x` | string[] |    `[]` | Custom AWS credential file(s).          |
-|     `--export` |  `-e` | string   |       — | Export results to CSV.                  |
+|     `--export` |  `-e` | string   |       - | Export results to CSV.                  |
 
 **Examples**
 
@@ -193,7 +193,7 @@ discovr aws -r ap-southeast-2 -c ~/.aws/config -x ~/.aws/credentials -e ./out/ec
 
 ---
 
-### `azure` — Azure VM scan
+### `azure` - Azure VM scan
 
 **Synopsis**
 
@@ -210,7 +210,7 @@ Discovers VMs in an Azure subscription and exports to CSV.
 |       Flag | Short | Type   |   Default | Description                          |
 | ---------: | ----: | ------ | --------: | ------------------------------------ |
 |  `--SubID` |  `-s` | string | `default` | Subscription ID (GUID) or `default`. |
-| `--export` |  `-e` | string |         — | Export results to CSV.               |
+| `--export` |  `-e` | string |         - | Export results to CSV.               |
 
 **Examples**
 
@@ -221,7 +221,7 @@ discovr azure -s 00000000-0000-0000-0000-000000000000 -e ./out/azure_assets.csv
 
 ---
 
-### `gcp` — GCP VM inventory
+### `gcp` - GCP VM inventory
 
 **Synopsis**
 
@@ -237,9 +237,9 @@ Lists VM instances in specified GCP projects and exports results.
 
 |        Flag | Short | Type   | Default | Description                        |
 | ----------: | ----: | ------ | ------: | ---------------------------------- |
-| `--project` |  `-p` | string |       — | Comma-separated project names.     |
-|    `--cred` |  `-c` | string |       — | Path to service account JSON file. |
-|  `--export` |  `-e` | string |       — | Export results to CSV.             |
+| `--project` |  `-p` | string |       - | Comma-separated project names.     |
+|    `--cred` |  `-c` | string |       - | Path to service account JSON file. |
+|  `--export` |  `-e` | string |       - | Export results to CSV.             |
 
 **Examples**
 
