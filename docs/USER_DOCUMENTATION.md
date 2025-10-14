@@ -1,16 +1,18 @@
-````markdown
 # Discovr — User Documentation
+
 ---
 
 ## Overview
-Discovr is a portable asset discovery CLI tool for scanning on-premise and cloud environments.  
-It supports active, passive, and Nmap network discovery as well as cloud inventory for AWS, Azure, and GCP.  
-Use the TUI for a guided interactive experience.
+
+Discovr is a portable asset discovery CLI tool for scanning on-premise and cloud environments.
+It supports active, passive, and Nmap network discovery as well as cloud inventory for AWS, Azure, and GCP.
+Use the TUI for a guided, interactive experience.
 
 Run:
+
 ```bash
 discovr -h
-````
+```
 
 to list available commands.
 
@@ -20,12 +22,12 @@ to list available commands.
 
 ### 1.1 System requirements
 
-* Go (for building) if you need to compile from source (optional if using prebuilt binaries)
 * Linux, macOS, or Windows
-* Network interface access (root/administrator for some operations)
+* Network interface access (administrator/root for some operations)
 * AWS / Azure / GCP credentials for cloud scans (if using cloud commands)
+* Go (for building), Docker, and Nmap in your environment if compiling from source
 
-### 1.2 Installation (quick)
+### 1.2 Installation
 
 **Linux / macOS**
 
@@ -33,17 +35,6 @@ to list available commands.
 git clone https://github.com/Naman1997/discovr.git
 cd discovr
 make
-```
-
-You can also build manually with:
-
-```bash
-go build -o discovr ./cmd
-```
-
-Verify installation:
-
-```bash
 ./discovr -h
 ```
 
@@ -53,11 +44,6 @@ Verify installation:
 git clone https://github.com/Naman1997/discovr.git
 cd discovr
 build.bat
-```
-
-Then run:
-
-```bash
 discovr.exe -h
 ```
 
@@ -66,6 +52,32 @@ discovr.exe -h
 ## 2. Command Reference
 
 > Each subcommand below maps to a file in the `cmd/` directory.
+
+---
+
+### `tui` — Interactive Text User Interface
+
+**Synopsis**
+
+```bash
+discovr tui
+```
+
+**Description**
+Launches a TUI that guides you through Active, Passive, Nmap, AWS, or Azure scans with interactive prompts and validation.
+
+**Example**
+
+```bash
+discovr tui
+```
+
+**Notes**
+
+* Good for users who prefer prompts over flags.
+* Validates IPs, ports, and subscription IDs.
+
+---
 
 ### `active` — Active network scan
 
@@ -77,7 +89,7 @@ discovr active [flags]
 
 **Description**
 Sends probes across a CIDR range to discover live hosts (IP addresses).
-By default, it uses ARP on a specified interface or ICMP pings.
+By default, uses ARP on a specified interface; optionally uses ICMP pings.
 Note: This command does **not** find MAC addresses.
 
 **Flags**
@@ -88,9 +100,9 @@ Note: This command does **not** find MAC addresses.
 |        `--cidr` |  `-r` | string |       — | Target CIDR to scan (e.g., `192.168.1.0/24`).          |
 |        `--mode` |  `-m` | bool   | `false` | Use ICMP echo requests instead of ARP.                 |
 | `--concurrency` |  `-p` | int    |    `50` | Number of concurrent workers (ICMP).                   |
-|     `--timeout` |  `-t` | int    |     `2` | Timeout (sec) for replies (ICMP).                      |
-|       `--count` |  `-c` | int    |     `1` | Number of requests per IP (ICMP).                      |
-|      `--export` |  `-e` | string |       — | If set, exports results to CSV at the path.            |
+|     `--timeout` |  `-t` | int    |     `2` | Timeout (sec) for ICMP replies.                        |
+|       `--count` |  `-c` | int    |     `1` | Number of ICMP requests per host.                      |
+|      `--export` |  `-e` | string |       — | Export results to CSV.                                 |
 
 **Examples**
 
@@ -207,17 +219,16 @@ Discovers assets in an Azure subscription and exports to CSV.
 
 **Flags**
 
-|             Flag | Short | Type   |   Default | Description                       |
-| ---------------: | ----: | ------ | --------: | --------------------------------- |
-| `--subscription` |  `-s` | string | `default` | Azure subscription ID or default. |
-|       `--tenant` |  `-t` | string |         — | Tenant ID (optional).             |
-|       `--export` |  `-e` | string |         — | Export results to CSV.            |
+|       Flag | Short | Type   |   Default | Description                          |
+| ---------: | ----: | ------ | --------: | ------------------------------------ |
+|  `--SubID` |  `-s` | string | `default` | Subscription ID (GUID) or `default`. |
+| `--export` |  `-e` | string |         — | Export results to CSV.               |
 
 **Examples**
 
 ```bash
 discovr azure -s default -e ./out/azure.csv
-discovr azure -s 11111111-2222-3333-4444-555555555555 -t 99999999-aaaa-bbbb-cccc-dddddddddddd -e ./out/azure_assets.csv
+discovr azure -s 00000000-0000-0000-0000-000000000000 -e ./out/azure_assets.csv
 ```
 
 ---
@@ -250,34 +261,7 @@ discovr gcp -p proj-a,proj-b -c ./keys/sa.json -e ./out/vms.csv
 
 ---
 
-### `tui` — Interactive Text User Interface
-
-**Synopsis**
-
-```bash
-discovr tui
-```
-
-**Description**
-Launches a TUI that guides you through Active, Passive, Nmap, AWS, or Azure scans with interactive prompts and validation.
-
-**Example**
-
-```bash
-discovr tui
-```
-
-**Notes**
-
-* Good for users who prefer prompts over flags.
-* Validates IPs, ports, and subscription IDs.
-
----
-
 ## 3. Output formats & exports
 
 * Most commands support `--export` / `-e` which writes results to CSV.
 * CLI prints tabular results to stdout by default.
-
-```
-```
