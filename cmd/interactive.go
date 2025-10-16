@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/Naman1997/discovr/internal"
 	"github.com/charmbracelet/huh"
@@ -24,9 +25,11 @@ var (
 	tCIDR           string
 	subID           string
 	icmpmode        bool
+	projectfilter   []string
+	credPath        string
 )
 
-func errhandle(form *huh.Form) {
+func Runform(form *huh.Form) {
 	if err := form.Run(); err != nil {
 		log.Fatal(err)
 	}
@@ -37,11 +40,11 @@ func RunTui() {
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Pick a Scan Option").
-				Options(huh.NewOptions("Active Scan", "Passive Scan", "Nmap Scan", "AWS Cloud Scan", "Azure Cloud Scan")...).
+				Options(huh.NewOptions("Active Scan", "Passive Scan", "Nmap Scan", "AWS Cloud Scan", "Azure Cloud Scan", "GCP Cloud Scan")...).
 				Value(&scantype),
 		),
 	)
-	errhandle(form)
+	Runform(form)
 
 	switch scantype {
 	case "Active Scan":
@@ -70,7 +73,7 @@ func RunTui() {
 					Value(&exportpath),
 			),
 		)
-		errhandle(form)
+		Runform(form)
 		internal.DefaultScan(netInterface, tCIDR, icmpmode, concurrency, timeout, count)
 		if !icmpmode {
 			internal.ShowResults(internal.Defaultscan_results)
@@ -123,7 +126,7 @@ func RunTui() {
 					Value(&exportpath),
 			),
 		)
-		errhandle(form)
+		Runform(form)
 		if durationStr == "" {
 			duration = 20
 		} else {
@@ -163,7 +166,7 @@ func RunTui() {
 					Value(&exportpath),
 			),
 		)
-		errhandle(form)
+		Runform(form)
 		if ip == "" {
 			ip = "127.0.0.1"
 		}
@@ -187,7 +190,7 @@ func RunTui() {
 					Value(&exportpath),
 			),
 		)
-		errhandle(form)
+		Runform(form)
 		if subID == "" {
 			subID = "default"
 		}
@@ -220,8 +223,48 @@ func RunTui() {
 					Value(&exportpath),
 			),
 		)
-		errhandle(form)
+		Runform(form)
 		internal.AwsScan(regionselect, []string{}, []string{}, "")
 		internal.ExportCSV(exportpath, internal.Aws_results)
+
+	case "GCP Cloud Scan":
+		var projectOptions []huh.Option[string]
+		pathplaceholder := GetOsPathPlaceholder()
+		form := huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().
+					Title("Enter Custom Credential Path:").
+					Placeholder("default = default credentials").
+					Value(&credPath),
+			),
+		)
+		Runform(form)
+		projects, err := FetchGCPProjects(credPath)
+		if err != nil {
+			fmt.Printf("%v", err)
+		}
+		for _, r := range projects {
+			projectOptions = append(projectOptions, huh.Option[string]{
+				Key:   r,
+				Value: r,
+			})
+		}
+		form_1 := huh.NewForm(
+			huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title("Select a GCP project").
+					Options(projectOptions...).
+					Value(&projectfilter),
+				huh.NewInput().
+					Title("Enter an export path:").
+					Placeholder(pathplaceholder).
+					Value(&exportpath),
+			),
+		)
+		Runform(form_1)
+		projectFilterStr := strings.Join(projectfilter, ",")
+		internal.GcpScan(credPath, projectFilterStr)
+		internal.ShowResults(internal.Gcp_results)
+		internal.ExportCSV(exportpath, internal.Gcp_results)
 	}
 }

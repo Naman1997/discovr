@@ -150,7 +150,6 @@ func ComputeColumnWidths(data interface{}, maxTotalWidth int) []int {
 			widths[i] = equal
 		}
 	}
-
 	return widths
 }
 
@@ -202,7 +201,6 @@ func BuildDynamicTableWithWrap(data interface{}, maxWidth int) ([]table.Column, 
 			rows = append(rows, row)
 		}
 	}
-
 	return columns, rows
 }
 

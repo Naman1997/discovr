@@ -12,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/charmbracelet/huh"
 	"github.com/google/gopacket/pcap"
+	"google.golang.org/api/cloudresourcemanager/v1"
+	"google.golang.org/api/option"
 )
 
 // helper functions
@@ -64,6 +66,42 @@ func FetchAWSRegion() ([]string, error) {
 		regions = append(regions, *region.RegionName)
 	}
 	return regions, nil
+}
+
+func FetchGCPProjects(credFile string) ([]string, error) {
+	ctx := context.Background()
+
+	var svc *cloudresourcemanager.Service
+	var err error
+
+	if credFile != "" {
+		// Custom Credentials used
+		svc, err = cloudresourcemanager.NewService(ctx,
+			option.WithCredentialsFile(credFile),
+			option.WithScopes(cloudresourcemanager.CloudPlatformReadOnlyScope),
+		)
+	} else {
+		// Default Credentials used
+		svc, err = cloudresourcemanager.NewService(ctx,
+			option.WithScopes(cloudresourcemanager.CloudPlatformReadOnlyScope),
+		)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Cloud Resource Manager service: %w", err)
+	}
+
+	resp, err := svc.Projects.List().Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list GCP projects: %w", err)
+	}
+
+	var projectIDs []string
+	for _, p := range resp.Projects {
+		projectIDs = append(projectIDs, p.ProjectId)
+	}
+
+	return projectIDs, nil
 }
 
 // validation functions
