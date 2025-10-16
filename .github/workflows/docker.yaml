@@ -1,0 +1,90 @@
+name: Build and Push Docker Image
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Latest Release URL
+        id: get_release
+        run: |
+          # Fetch the latest release information
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/Naman1997/discovr/releases/latest)
+          
+          # Extract the download URL for the specific asset name
+          DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | jq -r '.assets[] | select(.name == "discovr_Linux_x86_64.tar.gz") | .browser_download_url')
+          
+          # Extract the release tag
+          RELEASE_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
+          
+          # Validate that we found a download URL
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "Error: Could not find the specific asset 'discovr_Linux_x86_64.tar.gz'"
+            exit 1
+          fi
+          
+          # Set outputs for use in subsequent steps
+          echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
+          echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+          
+          # Debug output
+          echo "Download URL: $DOWNLOAD_URL"
+          echo "Release Tag: $RELEASE_TAG"
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Download binary
+        run: |
+          wget "${{ steps.get_release.outputs.download_url }}" -O discovr.tar.gz
+          
+          # Verify download
+          if [ ! -f discovr.tar.gz ]; then
+            echo "Failed to download binary"
+            exit 1
+          fi
+
+      - name: Extract binary
+        run: |
+          tar -xvf discovr.tar.gz
+          
+          # Verify extraction
+          if [ ! -f discovr ]; then
+            echo "Failed to extract binary"
+            exit 1
+          fi
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_release.outputs.release_tag }}
+          labels: ${{ steps.meta.outputs.labels }}
