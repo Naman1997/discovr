@@ -42,7 +42,6 @@ func PassiveScan(device string, scanSeconds int) {
 	err := sem.Acquire(ctx, 2)
 	if err != nil {
 		fmt.Println("")
-		fmt.Print("Exiting! Reason:", err)
 		return
 	}
 }
