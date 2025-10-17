@@ -13,7 +13,9 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"log"
@@ -42,26 +44,43 @@ type ScanResultDfActive struct {
 	Interface string
 	Dest_IP   string
 	Dest_Mac  string
+	Hostname  string
 }
 
 type ScanResultICMP struct {
-	IP  string
-	RTT time.Duration
+	IP       string
+	RTT      time.Duration
+	Hostname string
+}
+
+type HostnameResult struct {
+	IP   string
+	PTR  []string // reverse lookup names (may include trailing dot)
+	FQDN string   // chosen FQDN (first PTR with trailing dot trimmed) or empty
+	Err  string   // non-empty on error
 }
 
 // DefaultScan example: you can set desiredCIDR to "" to use interface mask,
 // or "192.168.0.0/28" to request scanning that CIDR (must be inside interface network).
 func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool, concurrency int, timeoutSec int, count int) {
-
-	if ICMPMode {
-		ICMPScan(targetCIDR, concurrency, timeoutSec, count)
-	} else {
-		ArpScan(networkInterface, targetCIDR)
+	netiface, err := net.InterfaceByName(networkInterface)
+	if err != nil {
+		panic(err)
 	}
 
+	if ICMPMode {
+		ICMPScan(netiface, targetCIDR, concurrency, timeoutSec, count)
+	} else {
+		ArpScan(netiface, targetCIDR, concurrency)
+	}
+
+	results := DiscoverHostnamesFromScanResults(Defaultscan_results, Icmpscan_results, 20, 2)
+	if len(results) > 0 {
+		fmt.Printf("\nDiscovered %d hostnames from scan results:\n", len(results))
+	}
 }
 
-func ArpScan(networkInterface string, targetCIDR string) {
+func ArpScan(networkInterface *net.Interface, targetCIDR string, concurrency int) {
 	fmt.Println("Starting ARP scan...")
 	var wg sync.WaitGroup
 	// Find all devices
@@ -70,25 +89,26 @@ func ArpScan(networkInterface string, targetCIDR string) {
 		panic(err)
 	}
 
-	netiface, err := net.InterfaceByName(networkInterface)
-	if err != nil {
-		panic(err)
-	}
 	wg.Add(1)
 	go func(netiface net.Interface) {
 		defer wg.Done()
-		if err := scan(&netiface, &devices, targetCIDR); err != nil {
+		if err := scan(&netiface, &devices, targetCIDR, concurrency); err != nil {
 			log.Printf("interface %v: %v", netiface.Name, err)
 		}
-	}(*netiface)
+	}(*networkInterface)
 
 	wg.Wait()
 }
 
-func ICMPScan(targetCIDR string, concurrency int, timeoutSec int, count int) {
-	if targetCIDR == "" {
-		fmt.Println("No CIDR provided for ICMP scan, please provide a valid CIDR using the -c flag.")
+func ICMPScan(netiface *net.Interface, targetCIDR string, concurrency int, timeoutSec int, count int) {
+	addr := parseNetIP(netiface)
+	if addr == nil {
+		fmt.Println("No valid IPv4 address found on the interface.")
 		return
+	}
+
+	if targetCIDR == "" {
+		targetCIDR = addr.String()
 	}
 
 	// Handle Ctrl+C
@@ -177,47 +197,9 @@ func pingHost(target string, count int, timeout time.Duration) {
 	}
 }
 
-// incIP increments an IP address by 1
-func incIP(ip net.IP) {
-	for j := len(ip) - 1; j >= 0; j-- {
-		ip[j]++
-		if ip[j] > 0 {
-			break
-		}
-	}
-}
-
-// isBroadcast checks if IP is the broadcast address of the subnet
-func isBroadcast(ipStr string, ipNet *net.IPNet) bool {
-	ip := net.ParseIP(ipStr).To4()
-	broadcast := make(net.IP, len(ip))
-	for i := range ip {
-		broadcast[i] = ipNet.IP[i] | ^ipNet.Mask[i]
-	}
-	return ip.Equal(broadcast)
-}
-
 // scan now accepts targetCIDR. If targetCIDR == "" it uses interface network as before.
-func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string) error {
-
-	// find interface IPv4 (same as before)
-	var addr *net.IPNet
-	if addrs, err := iface.Addrs(); err != nil {
-		return err
-	} else {
-		for _, a := range addrs {
-			if ipnet, ok := a.(*net.IPNet); ok {
-				if ip4 := ipnet.IP.To4(); ip4 != nil {
-					addr = &net.IPNet{
-						IP:   ip4,
-						Mask: ipnet.Mask[len(ipnet.Mask)-4:],
-					}
-					break
-				}
-			}
-		}
-	}
-	// addr is connected IPv4 network from interface
+func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string, concurrency int) error {
+	addr := parseNetIP(iface)
 	if addr == nil {
 		return errors.New("no good IP network found")
 	} else if addr.IP[0] == 127 {
@@ -270,7 +252,7 @@ func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string) er
 	defer close(stop)
 
 	// write ARP only for scanNet (which may be the requested /28, /30, or the full iface /24)
-	if err := writeARP(handle, iface, scanNet, addr); err != nil {
+	if err := writeARP(handle, iface, scanNet, addr, concurrency); err != nil {
 		return err
 	}
 
@@ -322,41 +304,196 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 	}
 }
 
-// writeARP writes an ARP request for each address on our local network to the
-// pcap handle.
-func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet, intAddr *net.IPNet) error {
-	// Set up all the layers' fields we can.
-	eth := layers.Ethernet{
-		SrcMAC:       iface.HardwareAddr,
-		DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-		EthernetType: layers.EthernetTypeARP,
-	}
-	arp := layers.ARP{
-		AddrType:          layers.LinkTypeEthernet,
-		Protocol:          layers.EthernetTypeIPv4,
-		HwAddressSize:     6,
-		ProtAddressSize:   4,
-		Operation:         layers.ARPRequest,
-		SourceHwAddress:   []byte(iface.HardwareAddr),
-		SourceProtAddress: []byte(intAddr.IP),
-		DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
-	}
-	// Set up buffer and options for serialization.
-	buf := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
-	}
-	// Send one packet for every address.
+// writeARP writes an ARP request for each address on our local network to thepcap handle.
+// It is a drop-in replacement for writeARP but faster for large subnets.
+func writeARP(handle *pcap.Handle, iface *net.Interface, addr *net.IPNet, intAddr *net.IPNet, concurrency int) error {
+
+	var writeMu sync.Mutex
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+	errCh := make(chan error, 1) // capture first error
+
+	// iterate all IPs to scan
 	for _, ip := range ips(addr, intAddr) {
-		arp.DstProtAddress = []byte(ip)
-		gopacket.SerializeLayers(buf, opts, &eth, &arp)
-		if err := handle.WritePacketData(buf.Bytes()); err != nil {
-			return err
-		}
+		// prepare per-ip values early
+		ip := ip // capture loop variable
+
+		// skip same as before (network/broadcast etc handled in ips)
+		sem <- struct{}{}
+		wg.Add(1)
+
+		go func(targetIP net.IP) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			// Build ethernet + arp into a fresh buffer per goroutine (no shared buffer)
+			eth := layers.Ethernet{
+				SrcMAC:       iface.HardwareAddr,
+				DstMAC:       net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+				EthernetType: layers.EthernetTypeARP,
+			}
+			arp := layers.ARP{
+				AddrType:          layers.LinkTypeEthernet,
+				Protocol:          layers.EthernetTypeIPv4,
+				HwAddressSize:     6,
+				ProtAddressSize:   4,
+				Operation:         layers.ARPRequest,
+				SourceHwAddress:   []byte(iface.HardwareAddr),
+				SourceProtAddress: []byte(intAddr.IP),
+				DstHwAddress:      []byte{0, 0, 0, 0, 0, 0},
+				DstProtAddress:    []byte(targetIP.To4()),
+			}
+
+			buf := gopacket.NewSerializeBuffer()
+			opts := gopacket.SerializeOptions{
+				FixLengths:       true,
+				ComputeChecksums: true,
+			}
+			if err := gopacket.SerializeLayers(buf, opts, &eth, &arp); err != nil {
+				select {
+				case errCh <- err:
+				default:
+				}
+				return
+			}
+			out := buf.Bytes()
+
+			// Serialize writes with mutex to be safe on non-threadsafe pcap handles
+			writeMu.Lock()
+			if err := handle.WritePacketData(out); err != nil {
+				writeMu.Unlock()
+				select {
+				case errCh <- err:
+				default:
+				}
+				return
+			}
+			writeMu.Unlock()
+		}(ip)
+	}
+
+	// wait for all goroutines
+	wg.Wait()
+	close(errCh)
+	// if any error occurred, return first one
+	if err, ok := <-errCh; ok {
+		return err
 	}
 	return nil
 }
+
+func DiscoverHostnamesFromScanResults(arp []ScanResultDfActive, icmp []ScanResultICMP, concurrency int, timeoutSec int) []HostnameResult {
+	seen := make(map[string]struct{})
+	var ips []string
+
+	for _, r := range arp {
+		if r.Dest_IP == "" {
+			continue
+		}
+		if _, ok := seen[r.Dest_IP]; !ok {
+			seen[r.Dest_IP] = struct{}{}
+			ips = append(ips, r.Dest_IP)
+		}
+	}
+	for _, r := range icmp {
+		if r.IP == "" {
+			continue
+		}
+		if _, ok := seen[r.IP]; !ok {
+			seen[r.IP] = struct{}{}
+			ips = append(ips, r.IP)
+		}
+	}
+
+	if concurrency <= 0 {
+		concurrency = 10
+	}
+
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+	resChan := make(chan HostnameResult, len(ips))
+
+	resolver := &net.Resolver{PreferGo: false}
+
+	for _, ip := range ips {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(ip string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSec)*time.Second)
+			defer cancel()
+
+			var hr HostnameResult
+			hr.IP = ip
+
+			names, err := resolver.LookupAddr(ctx, ip)
+			if err != nil {
+				hr.Err = err.Error()
+			} else if len(names) > 0 {
+				for i := range names {
+					names[i] = strings.TrimSuffix(names[i], ".")
+				}
+				hr.PTR = names
+				hr.FQDN = names[0]
+			}
+
+			if hr.FQDN != "" {
+				fmt.Printf("[+] %s -> %s\n", hr.IP, hr.FQDN)
+			} else if hr.Err != "" {
+				fmt.Printf("[-] %s lookup failed: %s\n", hr.IP, hr.Err)
+			} else {
+				fmt.Printf("[*] %s has no PTR record\n", hr.IP)
+			}
+
+			resChan <- hr
+		}(ip)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resChan)
+	}()
+
+	// Store hostname results
+	var results []HostnameResult
+	for r := range resChan {
+		results = append(results, r)
+	}
+
+	// --- Merge results back into ARP and ICMP ---
+	mergeHostnamesIntoResults(&arp, &icmp, results)
+
+	return results
+}
+
+func mergeHostnamesIntoResults(arp *[]ScanResultDfActive, icmp *[]ScanResultICMP, hostnames []HostnameResult) {
+	hmap := make(map[string]string)
+	for _, h := range hostnames {
+		if h.FQDN != "" {
+			hmap[h.IP] = h.FQDN
+		}
+	}
+
+	// Update ARP results
+	for i := range *arp {
+		ip := (*arp)[i].Dest_IP
+		if host, ok := hmap[ip]; ok {
+			(*arp)[i].Hostname = host
+		}
+	}
+
+	// Update ICMP results
+	for i := range *icmp {
+		ip := (*icmp)[i].IP
+		if host, ok := hmap[ip]; ok {
+			(*icmp)[i].Hostname = host
+		}
+	}
+}
+
+//Helper functions for ARP
 
 // ips is a simple and not very good method for getting all IPv4 addresses from a
 // net.IPNet.  It returns all IPs it can over the channel it sends back, closing
@@ -423,4 +560,70 @@ func alignToNetwork(n *net.IPNet) *net.IPNet {
 	mask := n.Mask
 	ip := n.IP.Mask(mask)
 	return &net.IPNet{IP: ip, Mask: mask}
+}
+
+func parseNetIP(iface *net.Interface) *net.IPNet {
+	var addr *net.IPNet
+	if addrs, err := iface.Addrs(); err != nil {
+		return nil
+	} else {
+		for _, a := range addrs {
+			if ipnet, ok := a.(*net.IPNet); ok {
+				if ip4 := ipnet.IP.To4(); ip4 != nil {
+					addr = &net.IPNet{
+						IP:   ip4,
+						Mask: ipnet.Mask[len(ipnet.Mask)-4:],
+					}
+					break
+				}
+			}
+		}
+	}
+	return addr
+}
+
+// Helper functions for ICMP
+// incIP increments an IP address by 1
+func incIP(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
+}
+
+// isBroadcast checks if IP is the broadcast address of the subnet
+func isBroadcast(ipStr string, ipNet *net.IPNet) bool {
+	ip := net.ParseIP(ipStr).To4()
+	broadcast := make(net.IP, len(ip))
+	for i := range ip {
+		broadcast[i] = ipNet.IP[i] | ^ipNet.Mask[i]
+	}
+	return ip.Equal(broadcast)
+}
+
+// Helper functions for reverse DNS and saving results
+// SaveHostnamesCSV writes the results to a CSV file with columns: ip,fqdn,ptrs,error
+func SaveHostnamesCSV(filename string, results []HostnameResult) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := csv.NewWriter(f)
+	defer w.Flush()
+
+	if err := w.Write([]string{"ip", "fqdn", "ptrs", "error"}); err != nil {
+		return err
+	}
+
+	for _, r := range results {
+		ptrs := strings.Join(r.PTR, ";")
+		if err := w.Write([]string{r.IP, r.FQDN, ptrs, r.Err}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
