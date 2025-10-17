@@ -18,6 +18,7 @@ var gcpCmd = &cobra.Command{
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		internal.GcpScan(CredFile, ProjectFilterStr)
+		internal.ShowResults(internal.Gcp_results)
 		internal.ExportCSV(GcpCsvExportPath, internal.Gcp_results)
 	},
 }

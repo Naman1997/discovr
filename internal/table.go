@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -150,7 +149,6 @@ func ComputeColumnWidths(data interface{}, maxTotalWidth int) []int {
 			widths[i] = equal
 		}
 	}
-
 	return widths
 }
 
@@ -202,16 +200,11 @@ func BuildDynamicTableWithWrap(data interface{}, maxWidth int) ([]table.Column, 
 			rows = append(rows, row)
 		}
 	}
-
 	return columns, rows
 }
 
 // -------------------- ShowResults Functions --------------------
 func ShowResults[T any](data []T) {
-	m := NewTableModel(data, 100)
-	_, err := tea.NewProgram(m).Run()
-	if err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
-	}
+	m := NewTableModel(data, 110)
+	fmt.Println(m.View())
 }
