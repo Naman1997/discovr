@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	// "strings"
 
 	"github.com/Naman1997/discovr/internal"
 	"github.com/charmbracelet/huh"
@@ -249,7 +248,6 @@ func RunTui() {
 				Value: r,
 			})
 		}
-		fmt.Println(projectOptions)
 		form_1 := huh.NewForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
@@ -263,8 +261,6 @@ func RunTui() {
 			),
 		)
 		Runform(form_1)
-		fmt.Println(projectfilter)
-	//	projectFilterStr := strings.Join(projectfilter, ",")
 		internal.GcpScan(credPath, projectfilter)
 		internal.ShowResults(internal.Gcp_results)
 		internal.ExportCSV(exportpath, internal.Gcp_results)
