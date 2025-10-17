@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -207,9 +206,5 @@ func BuildDynamicTableWithWrap(data interface{}, maxWidth int) ([]table.Column, 
 // -------------------- ShowResults Functions --------------------
 func ShowResults[T any](data []T) {
 	m := NewTableModel(data, 100)
-	_, err := tea.NewProgram(m).Run()
-	if err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
-	}
+	fmt.Println(m.View())
 }
