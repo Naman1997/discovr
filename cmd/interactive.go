@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
+	// "strings"
 
 	"github.com/Naman1997/discovr/internal"
 	"github.com/charmbracelet/huh"
@@ -25,7 +25,7 @@ var (
 	tCIDR           string
 	subID           string
 	icmpmode        bool
-	projectfilter   []string
+	projectfilter   string
 	credPath        string
 )
 
@@ -249,9 +249,10 @@ func RunTui() {
 				Value: r,
 			})
 		}
+		fmt.Println(projectOptions)
 		form_1 := huh.NewForm(
 			huh.NewGroup(
-				huh.NewMultiSelect[string]().
+				huh.NewSelect[string]().
 					Title("Select a GCP project").
 					Options(projectOptions...).
 					Value(&projectfilter),
@@ -262,8 +263,9 @@ func RunTui() {
 			),
 		)
 		Runform(form_1)
-		projectFilterStr := strings.Join(projectfilter, ",")
-		internal.GcpScan(credPath, projectFilterStr)
+		fmt.Println(projectfilter)
+	//	projectFilterStr := strings.Join(projectfilter, ",")
+		internal.GcpScan(credPath, projectfilter)
 		internal.ShowResults(internal.Gcp_results)
 		internal.ExportCSV(exportpath, internal.Gcp_results)
 	}

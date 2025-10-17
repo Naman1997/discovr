@@ -98,7 +98,7 @@ func FetchGCPProjects(credFile string) ([]string, error) {
 
 	var projectIDs []string
 	for _, p := range resp.Projects {
-		projectIDs = append(projectIDs, p.ProjectId)
+		projectIDs = append(projectIDs, p.Name)
 	}
 
 	return projectIDs, nil
