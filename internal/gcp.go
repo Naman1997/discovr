@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -16,11 +15,9 @@ var Gcp_results []GcpScanResult
 
 type GcpScanResult struct {
 	ProjectId     string
-	InstanceId    string
 	InstanceName  string
 	Hostname      string
 	OsType        string
-	Zone          string
 	InterfaceName string
 	InternalIP    string
 	ExternalIPs   string
@@ -105,8 +102,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 	}
 
 	// Process instances from all zones
-	for zoneName, instancesScopedList := range instanceList.Items {
-		zone := strings.TrimPrefix(zoneName, "zones/")
+	for _, instancesScopedList := range instanceList.Items {
 
 		// Skip zones with no instances
 		if len(instancesScopedList.Instances) == 0 {
@@ -139,7 +135,6 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 					}
 				}
 
-				fmt.Printf("Zone: %s\n", zone)
 				fmt.Printf("Interface Name: %s\n", networkInterface.Name)
 
 				// Internal IP
@@ -181,11 +176,9 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 				// Collect results
 				result := GcpScanResult{
 					ProjectId:     projectID,
-					InstanceId:    strconv.FormatUint(instance.Id, 10),
 					InstanceName:  instance.Name,
 					Hostname:      instance.Hostname,
 					OsType:        osType,
-					Zone:          zone,
 					InterfaceName: networkInterface.Name,
 					InternalIP:    networkInterface.NetworkIP,
 					ExternalIPs:   natIPString,
