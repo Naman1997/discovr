@@ -205,6 +205,6 @@ func BuildDynamicTableWithWrap(data interface{}, maxWidth int) ([]table.Column, 
 
 // -------------------- ShowResults Functions --------------------
 func ShowResults[T any](data []T) {
-	m := NewTableModel(data, 100)
+	m := NewTableModel(data, 110)
 	fmt.Println(m.View())
 }
