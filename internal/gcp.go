@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/Naman1997/discovr/verbose"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
@@ -113,11 +114,11 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 			for _, networkInterface := range instance.NetworkInterfaces {
 
 				// Print item
-				fmt.Println()
-				fmt.Printf("Project ID: %s\n", projectID)
-				fmt.Printf("Instance ID: %d\n", instance.Id)
-				fmt.Printf("Instance Name: %s\n", instance.Name)
-				fmt.Printf("Hostname: %s\n", instance.Hostname)
+				verbose.VerbosePrintln()
+				verbose.VerbosePrintf("Project ID: %s\n", projectID)
+				verbose.VerbosePrintf("Instance ID: %d\n", instance.Id)
+				verbose.VerbosePrintf("Instance Name: %s\n", instance.Name)
+				verbose.VerbosePrintf("Hostname: %s\n", instance.Hostname)
 
 				// Get OS details
 				var osType string
@@ -135,11 +136,11 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 					}
 				}
 
-				fmt.Printf("Interface Name: %s\n", networkInterface.Name)
+				verbose.VerbosePrintf("Interface Name: %s\n", networkInterface.Name)
 
 				// Internal IP
 				if networkInterface.NetworkIP != "" {
-					fmt.Printf("Internal IP: %s\n", networkInterface.NetworkIP)
+					verbose.VerbosePrintf("Internal IP: %s\n", networkInterface.NetworkIP)
 				}
 
 				// Collect all NatIP values (these are external Ips)
@@ -150,7 +151,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 				}
 				if len(natIPs) > 0 {
 					natIPString = fmt.Sprintf("[%s]", strings.Join(natIPs, ","))
-					fmt.Printf("External IPs: %s\n", natIPString)
+					verbose.VerbosePrintf("External IPs: %s\n", natIPString)
 				}
 
 				// VPC
@@ -159,7 +160,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 					networkParts := strings.Split(networkInterface.Network, "/")
 					if len(networkParts) > 0 {
 						vpcID = networkParts[len(networkParts)-1]
-						fmt.Printf("VPC: %s\n", vpcID)
+						verbose.VerbosePrintf("VPC: %s\n", vpcID)
 					}
 				}
 
@@ -169,7 +170,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 					subnetParts := strings.Split(networkInterface.Subnetwork, "/")
 					if len(subnetParts) > 0 {
 						subnetID = subnetParts[len(subnetParts)-1]
-						fmt.Printf("Subnet: %s\n", subnetID)
+						verbose.VerbosePrintf("Subnet: %s\n", subnetID)
 					}
 				}
 

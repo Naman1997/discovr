@@ -2,11 +2,11 @@ package internal
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"strings"
 
+	"github.com/Naman1997/discovr/verbose"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -76,7 +76,7 @@ func AwsScan(regionFilter string, customConfigs []string, customCredentials []st
 	if regionFilter == "" {
 		for _, region := range result.Regions {
 			regionName := aws.ToString(region.RegionName)
-			fmt.Printf("Scanning region: %s\n", regionName)
+			verbose.VerbosePrintf("Scanning region: %s\n", regionName)
 			ProcessInstancesForRegion(cfg, regionName)
 		}
 	} else {
@@ -97,7 +97,7 @@ func ProcessInstancesForRegion(cfg aws.Config, regionName string) {
 		for _, reservation := range output.Reservations {
 			for _, instance := range reservation.Instances {
 				instanceID := aws.ToString(instance.InstanceId)
-				fmt.Printf("  Instance ID: %s\n", instanceID)
+				verbose.VerbosePrintf("  Instance ID: %s\n", instanceID)
 
 				pageSize := int32(50)
 				netPaginator := ec2.NewDescribeNetworkInterfacesPaginator(regionSvc, &ec2.DescribeNetworkInterfacesInput{
@@ -142,14 +142,14 @@ func ProcessInstancesForRegion(cfg aws.Config, regionName string) {
 							hostname = aws.ToString(netInterface.PrivateDnsName)
 						}
 
-						fmt.Printf("	Instance Id: %s\n", instanceID)
-						fmt.Printf("    Public IP: %s\n", publicIP)
-						fmt.Printf("    MAC Address: %s\n", macAddress)
-						fmt.Printf("    VPC ID: %s\n", vpcID)
-						fmt.Printf("    Subnet ID: %s\n", subnetID)
-						fmt.Printf("    Private IPs: %v\n", privateIPs)
-						fmt.Printf("    Hostname: %s\n", hostname)
-						fmt.Printf("    Region: %s\n", regionName)
+						verbose.VerbosePrintf("	Instance Id: %s\n", instanceID)
+						verbose.VerbosePrintf("    Public IP: %s\n", publicIP)
+						verbose.VerbosePrintf("    MAC Address: %s\n", macAddress)
+						verbose.VerbosePrintf("    VPC ID: %s\n", vpcID)
+						verbose.VerbosePrintf("    Subnet ID: %s\n", subnetID)
+						verbose.VerbosePrintf("    Private IPs: %v\n", privateIPs)
+						verbose.VerbosePrintf("    Hostname: %s\n", hostname)
+						verbose.VerbosePrintf("    Region: %s\n", regionName)
 
 						result := AwsScanResult{
 							InstanceId: instanceID,

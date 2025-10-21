@@ -7,6 +7,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/Naman1997/discovr/verbose"
+	Verbose "github.com/Naman1997/discovr/verbose"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -104,17 +106,17 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 		ip, _ := ipLayer.(*layers.IPv4)
 		if slices.Contains(localIPs, ip.DstIP.String()) && !slices.Contains(discoveredAssets, ip.SrcIP.String()) {
 			discoveredAssets = append(discoveredAssets, ip.SrcIP.String())
-			fmt.Printf("Discovered new asset: %s\n", ip.SrcIP)
-			fmt.Println("Protocol: ", ip.Protocol)
-			fmt.Println()
+			verbose.VerbosePrintf("Discovered new asset: %s\n", ip.SrcIP)
+			verbose.VerbosePrintln("Protocol: ", ip.Protocol)
+			verbose.VerbosePrintln()
 
 			if ethernetLayer != nil {
-				fmt.Println("Ethernet layer detected.")
+				verbose.VerbosePrintln("Ethernet layer detected.\n")
 				ethernetPacket, _ := ethernetLayer.(*layers.Ethernet)
-				fmt.Println("Source MAC: ", ethernetPacket.SrcMAC)
-				fmt.Println("Destination MAC: ", ethernetPacket.DstMAC)
-				fmt.Println("Ethernet type: ", ethernetPacket.EthernetType)
-				fmt.Println()
+				verbose.VerbosePrintln("Source MAC: ", ethernetPacket.SrcMAC)
+				verbose.VerbosePrintln("Destination MAC: ", ethernetPacket.DstMAC)
+				verbose.VerbosePrintln("Ethernet type: ", ethernetPacket.EthernetType)
+				verbose.VerbosePrintln()
 
 				//export SCRUM-94
 				result := ScanResultPassive{
@@ -127,7 +129,7 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 				Passive_results = append(Passive_results, result)
 
 			}
-			fmt.Println("==========================================================================================")
+			Verbose.VerbosePrintln("==========================================================================================")
 		}
 	}
 }

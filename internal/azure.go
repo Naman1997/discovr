@@ -14,6 +14,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork"
+	"github.com/Naman1997/discovr/verbose"
 )
 
 var Azure_results []AzureVMResult
@@ -90,7 +91,7 @@ func Azurescan(subIdInput string) {
 		subID = subIdInput
 	}
 
-	fmt.Println("----------------------------------------")
+	verbose.VerbosePrintln("----------------------------------------\n")
 
 	ctx := context.Background()
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
@@ -224,16 +225,16 @@ func Azurescan(subIdInput string) {
 					result.Vnet = strings.Join(vmInfo.Vnet, ", ")
 					result.PublicIP = strings.Join(vmInfo.PublicIP, ", ")
 
-					fmt.Printf("\nName: %s\n", result.Name)
-					fmt.Printf("ID: %s\n", result.UniqueID)
-					fmt.Printf("Location: %s\n", result.Location)
-					fmt.Printf("Resource Group: %s\n", result.ResourceGroup)
-					fmt.Printf("Private IP: %s\n", result.PrivateIP)
-					fmt.Printf("Public IP: %s\n", result.PublicIP)
-					fmt.Printf("MAC Address: %s\n", result.MAC)
-					fmt.Printf("Vnet: %s\n", result.Vnet)
-					fmt.Printf("NIC: %s\n", result.NIC)
-					fmt.Printf("Subnet: %s\n", result.Subnet)
+					verbose.VerbosePrintf("\nName: %s\n", result.Name)
+					verbose.VerbosePrintf("ID: %s\n", result.UniqueID)
+					verbose.VerbosePrintf("Location: %s\n", result.Location)
+					verbose.VerbosePrintf("Resource Group: %s\n", result.ResourceGroup)
+					verbose.VerbosePrintf("Private IP: %s\n", result.PrivateIP)
+					verbose.VerbosePrintf("Public IP: %s\n", result.PublicIP)
+					verbose.VerbosePrintf("MAC Address: %s\n", result.MAC)
+					verbose.VerbosePrintf("Vnet: %s\n", result.Vnet)
+					verbose.VerbosePrintf("NIC: %s\n", result.NIC)
+					verbose.VerbosePrintf("Subnet: %s\n", result.Subnet)
 
 					Azure_results = append(Azure_results, result)
 				}

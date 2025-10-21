@@ -26,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Naman1997/discovr/verbose"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -76,12 +77,12 @@ func DefaultScan(networkInterface string, targetCIDR string, ICMPMode bool, conc
 
 	results := DiscoverHostnamesFromScanResults(Defaultscan_results, Icmpscan_results, 20, 2)
 	if len(results) > 0 {
-		fmt.Printf("\nDiscovered %d hostnames from scan results:\n", len(results))
+		verbose.VerbosePrintf("\nDiscovered %d hostnames from scan results:\n", len(results))
 	}
 }
 
 func ArpScan(networkInterface *net.Interface, targetCIDR string, concurrency int) {
-	fmt.Println("Starting ARP scan...")
+	verbose.VerbosePrintln("Starting ARP scan...")
 	var wg sync.WaitGroup
 	// Find all devices
 	devices, err := pcap.FindAllDevs()
@@ -116,15 +117,15 @@ func ICMPScan(netiface *net.Interface, targetCIDR string, concurrency int, timeo
 	target := targetCIDR
 	// --- Detect Single IP or CIDR ---
 	if ip, ipnet, err := net.ParseCIDR(target); err == nil {
-		fmt.Printf("Target is a CIDR: %s (network %s)\n", target, ipnet.String())
+		verbose.VerbosePrintf("Target is a CIDR: %s (network %s)\n", target, ipnet.String())
 		runSweep(ip, ipnet, concurrency, count, time.Duration(timeoutSec)*time.Second)
-		fmt.Println("Ping sweep complete.")
+		verbose.VerbosePrintln("Ping sweep complete.")
 
 	} else if ip := net.ParseIP(target); ip != nil {
-		fmt.Printf("Target is a single IP: %s\n", target)
+		verbose.VerbosePrintf("Target is a single IP: %s\n", target)
 		pingHost(target, count, time.Duration(timeoutSec)*time.Second)
 	} else {
-		fmt.Println("Invalid input: not a valid IP or CIDR")
+		verbose.VerbosePrintln("Invalid input: not a valid IP or CIDR")
 	}
 }
 
@@ -160,7 +161,7 @@ func runSweep(ip net.IP, ipNet *net.IPNet, concurrency int, count int, timeout t
 				pinger.Interval = time.Duration(100) * time.Millisecond
 				pinger.Timeout = timeout
 				if err := pinger.Run(); err == nil && pinger.Statistics().PacketsRecv > 0 {
-					fmt.Printf("Host alive: %-15s (avg RTT: %v)\n",
+					verbose.VerbosePrintf("Host alive: %-15s (avg RTT: %v)\n",
 						target, pinger.Statistics().AvgRtt)
 					mu.Lock()
 					Icmpscan_results = append(Icmpscan_results, ScanResultICMP{
@@ -180,7 +181,7 @@ func runSweep(ip net.IP, ipNet *net.IPNet, concurrency int, count int, timeout t
 func pingHost(target string, count int, timeout time.Duration) {
 	pinger, err := probing.NewPinger(target)
 	if err != nil {
-		fmt.Printf("Cannot create pinger for %s: %v\n", target, err)
+		verbose.VerbosePrintf("Cannot create pinger for %s: %v\n", target, err)
 		return
 	}
 	pinger.SetPrivileged(true)
@@ -189,11 +190,11 @@ func pingHost(target string, count int, timeout time.Duration) {
 	pinger.Interval = time.Duration(100) * time.Millisecond
 	pinger.Timeout = timeout
 	pinger.OnRecv = func(pkt *probing.Packet) {
-		fmt.Printf("%d bytes from %s: icmp_seq=%d time=%v ttl=%v\n",
+		verbose.VerbosePrintf("%d bytes from %s: icmp_seq=%d time=%v ttl=%v\n",
 			pkt.Nbytes, pkt.IPAddr, pkt.Seq, pkt.Rtt, pkt.TTL)
 	}
 	if err := pinger.Run(); err != nil {
-		fmt.Printf("Ping failed for %s: %v\n", target, err)
+		verbose.VerbosePrintf("Ping failed for %s: %v\n", target, err)
 	}
 }
 
@@ -227,7 +228,7 @@ func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string, co
 		scanNet = addr
 	}
 
-	log.Printf("Using network range %v for interface %v", scanNet, iface.Name)
+	verbose.VerbosePrintf("Using network range %v for interface %v\n", scanNet, iface.Name)
 
 	// find device name (same)
 	var deviceName string
@@ -290,7 +291,7 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 			key := result.Interface + "_" + result.Dest_IP + "_" + result.Dest_Mac
 			mu.Lock()
 			if seenResults[key] {
-				log.Printf("Duplicate detected for %s", key)
+				verbose.VerbosePrintf("Duplicate detected for %s\n", key)
 
 			} else {
 				seenResults[key] = true
@@ -298,7 +299,7 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 			}
 			mu.Unlock()
 
-			log.Printf("IP %v is at %v from interface: %v",
+			verbose.VerbosePrintf("IP %v is at %v from interface: %v\n",
 				result.Dest_IP, result.Dest_Mac, result.Interface)
 		}
 	}
@@ -440,11 +441,11 @@ func DiscoverHostnamesFromScanResults(arp []ScanResultDfActive, icmp []ScanResul
 			}
 
 			if hr.FQDN != "" {
-				fmt.Printf("[+] %s -> %s\n", hr.IP, hr.FQDN)
+				verbose.VerbosePrintf("[+] %s -> %s\n", hr.IP, hr.FQDN)
 			} else if hr.Err != "" {
-				fmt.Printf("[-] %s lookup failed: %s\n", hr.IP, hr.Err)
+				verbose.VerbosePrintf("[-] %s lookup failed: %s\n", hr.IP, hr.Err)
 			} else {
-				fmt.Printf("[*] %s has no PTR record\n", hr.IP)
+				verbose.VerbosePrintf("[*] %s has no PTR record\n", hr.IP)
 			}
 
 			resChan <- hr

@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/Naman1997/discovr/verbose"
 	"github.com/spf13/cobra"
 )
 
@@ -16,9 +17,17 @@ var rootCmd = &cobra.Command{
 	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
+func init() {
+	rootCmd.PersistentFlags().BoolVarP(&verbose.Verbose, "verbose", "v", false, "Enable verbose")
+}
+
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+func VerboseEnabled() bool {
+	return verbose.Verbose
 }

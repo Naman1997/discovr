@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/Naman1997/discovr/assets"
+	"github.com/Naman1997/discovr/verbose"
 	"github.com/Ullaakut/nmap/v3"
 	osfamily "github.com/Ullaakut/nmap/v3/pkg/osfamilies"
 )
@@ -98,21 +99,21 @@ func NmapScan(targets string, ports string, osDetection bool) {
 					for _, class := range match.Classes {
 						switch class.OSFamily() {
 						case osfamily.Linux:
-							fmt.Printf("Discovered host running Linux: %q\n", host.Addresses[0])
+							verbose.VerbosePrintf("Discovered host running Linux: %q\n", host.Addresses[0])
 							matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
 						case osfamily.Windows:
-							fmt.Printf("Discovered host running Windows: %q\n", host.Addresses[0])
+							verbose.VerbosePrintf("Discovered host running Windows: %q\n", host.Addresses[0])
 							matchedHosts = append(matchedHosts, host.Addresses[0].Addr)
 						}
 					}
 				}
 			}
 		} else {
-			fmt.Printf("Discovered host: %q\n", host.Addresses[0])
+			verbose.VerbosePrintf("Discovered host: %q\n", host.Addresses[0])
 		}
 
 		for _, port := range host.Ports {
-			fmt.Printf("\tPort %d/%s %s %s %s\n", port.ID, port.Protocol, port.State, port.Service.Name, port.Service.Product)
+			verbose.VerbosePrintf("\tPort %d/%s %s %s %s\n", port.ID, port.Protocol, port.State, port.Service.Name, port.Service.Product)
 
 			// export SCRUM-94
 			result := ScanResultActive{
@@ -126,7 +127,7 @@ func NmapScan(targets string, ports string, osDetection bool) {
 		}
 	}
 
-	fmt.Printf("Nmap done: %d hosts up scanned in %.2f seconds\n", len(result.Hosts), result.Stats.Finished.Elapsed)
+	verbose.VerbosePrintf("Nmap done: %d hosts up scanned in %.2f seconds\n", len(result.Hosts), result.Stats.Finished.Elapsed)
 
 	// Remove the dir containing nmap
 	defer os.RemoveAll(nmapDir)
