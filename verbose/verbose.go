@@ -1,6 +1,9 @@
 package verbose
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 var Verbose bool
 
@@ -14,4 +17,12 @@ func VerbosePrintf(format string, a ...interface{}) {
 	if Verbose {
 		fmt.Printf(format, a...)
 	}
+}
+
+func Printf(format string, a ...interface{}) {
+	fmt.Printf(format, a...)
+}
+
+func VerboseFatalf(err error) {
+	log.Fatalf(err.Error())
 }

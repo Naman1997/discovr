@@ -3,7 +3,6 @@ package internal
 import (
 	"archive/zip"
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -181,7 +180,7 @@ func unzip(destination string, zipFilePath string) {
 		filePath := filepath.Join(destination, f.Name)
 
 		if !strings.HasPrefix(filePath, filepath.Clean(destination)+string(string(os.PathSeparator))) {
-			fmt.Println("invalid file path")
+			verbose.Printf("invalid file path")
 			return
 		}
 		if f.FileInfo().IsDir() {

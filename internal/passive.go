@@ -2,13 +2,11 @@ package internal
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"slices"
 	"time"
 
 	"github.com/Naman1997/discovr/verbose"
-	Verbose "github.com/Naman1997/discovr/verbose"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -43,7 +41,7 @@ func PassiveScan(device string, scanSeconds int) {
 
 	err := sem.Acquire(ctx, 2)
 	if err != nil {
-		fmt.Println("")
+		verbose.Printf("")
 		return
 	}
 }
@@ -129,7 +127,7 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 				Passive_results = append(Passive_results, result)
 
 			}
-			Verbose.VerbosePrintln("==========================================================================================")
+			verbose.VerbosePrintln("==========================================================================================")
 		}
 	}
 }
@@ -138,14 +136,14 @@ func getLocalIPs() ([]string, error) {
 	var localIPs []string
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		fmt.Printf("Error getting interfaces: %v\n", err)
+		verbose.Printf("Error getting interfaces: %v\n", err)
 		return localIPs, err
 	}
 
 	for _, i := range ifaces {
 		addrs, err := i.Addrs()
 		if err != nil {
-			fmt.Printf("Error getting addresses for interface %s: %v\nContinuing...\n", i.Name, err)
+			verbose.Printf("Error getting addresses for interface %s: %v\nContinuing...\n", i.Name, err)
 			continue
 		}
 

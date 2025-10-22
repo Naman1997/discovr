@@ -119,8 +119,8 @@ func ComputeColumnWidths(data interface{}, maxTotalWidth int) []int {
 
 	// Compute equal widths
 	baseWidth := (maxTotalWidth / numCols) - divider
-	if baseWidth < 3 { // enforce minimum width
-		baseWidth = 3
+	if baseWidth < 1 { // enforce minimum width
+		baseWidth = 1
 	}
 
 	for i := 0; i < numCols; i++ {
