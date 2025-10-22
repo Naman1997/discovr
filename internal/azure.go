@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,7 +84,7 @@ func Azurescan(subIdInput string) {
 	if subIdInput == "default" {
 		subID, err = GetDefaultSubscription()
 		if err != nil {
-			log.Fatal(err)
+			verbose.VerboseFatal(err)
 		}
 	} else {
 		subID = subIdInput
@@ -96,12 +95,12 @@ func Azurescan(subIdInput string) {
 	ctx := context.Background()
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 
 	vmClient, err := armcompute.NewVirtualMachinesClient(subID, cred, nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 
 	// raises errors if Invalid SubID or no VMs in Sub
@@ -109,23 +108,23 @@ func Azurescan(subIdInput string) {
 	if testPager.More() {
 		_, err := testPager.NextPage(ctx)
 		if err != nil {
-			log.Fatalf("Subscription ID %v does not Exist: %v", subID, err)
+			verbose.VerboseFatalfMsg("Subscription ID %v does not Exist: %v", subID, err)
 		}
 	} else {
-		log.Fatalf("Subscription %s contains no VMs", subID)
+		verbose.VerboseFatalfMsg("Subscription %s contains no VMs", subID)
 	}
 
 	nicClient, err := armnetwork.NewInterfacesClient(subID, cred, nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 	subnetClient, err := armnetwork.NewSubnetsClient(subID, cred, nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 	pipClient, err := armnetwork.NewPublicIPAddressesClient(subID, cred, nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 
 	// VM Client for creating pager and initial info
@@ -147,11 +146,11 @@ func Azurescan(subIdInput string) {
 				var vmInfo AzureVMData
 				nicID, err := arm.ParseResourceID(*nicRef.ID)
 				if err != nil {
-					log.Fatal(err)
+					verbose.VerboseFatal(err)
 				}
 				nic, err := nicClient.Get(ctx, nicID.ResourceGroupName, nicID.Name, nil)
 				if err != nil {
-					log.Fatal(err)
+					verbose.VerboseFatal(err)
 				}
 				if nic.Name != nil {
 					vmInfo.NIC = append(vmInfo.NIC, nicID.Name)
@@ -171,7 +170,7 @@ func Azurescan(subIdInput string) {
 					if ipConf.Properties.Subnet != nil {
 						subnetID, err := arm.ParseResourceID(*ipConf.Properties.Subnet.ID)
 						if err != nil {
-							log.Fatal(err)
+							verbose.VerboseFatal(err)
 						}
 						if subnetID.Parent.Name != "" {
 							vmInfo.Vnet = append(vmInfo.Vnet, subnetID.Parent.Name)
@@ -182,7 +181,7 @@ func Azurescan(subIdInput string) {
 
 						subnetResp, err := subnetClient.Get(ctx, subnetID.ResourceGroupName, subnetID.Parent.Name, subnetID.Name, nil)
 						if err != nil {
-							log.Fatal(err)
+							verbose.VerboseFatal(err)
 						}
 						cidr := "unknown" // default
 						if subnetResp.Properties != nil {
@@ -208,11 +207,11 @@ func Azurescan(subIdInput string) {
 					if ipConf.Properties.PublicIPAddress != nil {
 						pipID, err := arm.ParseResourceID(*ipConf.Properties.PublicIPAddress.ID)
 						if err != nil {
-							log.Fatal(err)
+							verbose.VerboseFatal(err)
 						}
 						pip, err := pipClient.Get(ctx, pipID.ResourceGroupName, pipID.Name, nil)
 						if err != nil {
-							log.Fatal(err)
+							verbose.VerboseFatal(err)
 						}
 						if err == nil && pip.Properties.IPAddress != nil {
 							vmInfo.PublicIP = append(vmInfo.PublicIP, *pip.Properties.IPAddress)

@@ -2,9 +2,10 @@ package internal
 
 import (
 	"fmt"
-	"golang.org/x/term"
 	"os"
 	"reflect"
+
+	"golang.org/x/term"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -39,7 +40,7 @@ func NewTableModel(data interface{}, width int) *tableModel {
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("#6e6f6eff")).
 		BorderBottom(true).
-		Align(lipgloss.Right).
+		Align(lipgloss.Center).
 		Bold(true)
 	s.Selected = s.Selected.
 		BorderForeground(lipgloss.Color("")).

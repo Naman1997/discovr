@@ -18,7 +18,6 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -94,7 +93,7 @@ func ArpScan(networkInterface *net.Interface, targetCIDR string, concurrency int
 	go func(netiface net.Interface) {
 		defer wg.Done()
 		if err := scan(&netiface, &devices, targetCIDR, concurrency); err != nil {
-			log.Printf("interface %v: %v", netiface.Name, err)
+			verbose.Printf("interface %v: %v", netiface.Name, err)
 		}
 	}(*networkInterface)
 
@@ -104,7 +103,7 @@ func ArpScan(networkInterface *net.Interface, targetCIDR string, concurrency int
 func ICMPScan(netiface *net.Interface, targetCIDR string, concurrency int, timeoutSec int, count int) {
 	addr := parseNetIP(netiface)
 	if addr == nil {
-		fmt.Println("No valid IPv4 address found on the interface.")
+		verbose.Printf("No valid IPv4 address found on the interface.")
 		return
 	}
 
@@ -136,7 +135,7 @@ func runSweep(ip net.IP, ipNet *net.IPNet, concurrency int, count int, timeout t
 	for currentIP := ip.Mask(ipNet.Mask); ipNet.Contains(currentIP); incIP(currentIP) {
 		select {
 		case <-c:
-			fmt.Println("\nInterrupted.")
+			verbose.Printf("\nInterrupted.")
 			return
 		default:
 			hostIP := currentIP.String()
@@ -215,12 +214,12 @@ func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string, co
 	if targetCIDR != "" {
 		_, tNet, err := net.ParseCIDR(targetCIDR)
 		if err != nil {
-			return fmt.Errorf("invalid target CIDR %q: %v", targetCIDR, err)
+			return verbose.VerboseErrorf("invalid target CIDR %q: %v", targetCIDR, err)
 		}
 		// align target network IP to its network base
 		tNet = alignToNetwork(tNet)
 		if !isSubnetWithin(addr, tNet) {
-			return fmt.Errorf("requested CIDR %v is outside connected interface network %v", tNet.String(), addr.String())
+			return verbose.VerboseErrorf("requested CIDR %v is outside connected interface network %v", tNet.String(), addr.String())
 		}
 		scanNet = tNet
 	} else {
@@ -238,7 +237,7 @@ func scan(iface *net.Interface, devices *[]pcap.Interface, targetCIDR string, co
 		}
 	}
 	if deviceName == "" {
-		return fmt.Errorf("cannot find the corresponding device for the interface %s", iface.Name)
+		return verbose.VerboseErrorf("cannot find the corresponding device for the interface %s", iface.Name)
 	}
 
 	handle, err := pcap.OpenLive(deviceName, 65536, true, pcap.BlockForever)

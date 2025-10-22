@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/Naman1997/discovr/verbose"
@@ -36,34 +35,34 @@ func GcpScan(credFile string, projectFilterStr string) {
 	if credFile != "" {
 		resourceManagerClient, err = cloudresourcemanager.NewService(ctx, option.WithCredentialsFile(credFile))
 		if err != nil {
-			log.Fatalf("Failed to create resource manager client: %v", err)
+			verbose.VerboseFatalfMsg("Failed to create resource manager client: %v", err)
 		}
 
 		computeService, err = compute.NewService(ctx, option.WithCredentialsFile(credFile))
 		if err != nil {
-			log.Fatalf("Failed to create compute service: %v", err)
+			verbose.VerboseFatalfMsg("Failed to create compute service: %v", err)
 		}
 	} else {
 		resourceManagerClient, err = cloudresourcemanager.NewService(ctx)
 		if err != nil {
-			log.Fatalf("Failed to create resource manager client: %v", err)
+			verbose.VerboseFatalfMsg("Failed to create resource manager client: %v", err)
 		}
 
 		computeService, err = compute.NewService(ctx)
 		if err != nil {
-			log.Fatalf("Failed to create compute service: %v", err)
+			verbose.VerboseFatalfMsg("Failed to create compute service: %v", err)
 		}
 	}
 
 	// List All Projects
 	projects, err := resourceManagerClient.Projects.List().Do()
 	if err != nil {
-		log.Fatalf("Failed to list projects: %v", err)
+		verbose.VerboseFatalfMsg("Failed to list projects: %v", err)
 	}
 
 	// Process Projects
 	if len(projects.Projects) == 0 {
-		fmt.Println("No projects found.")
+		verbose.VerbosePrintln("No projects found.")
 		return
 	}
 
@@ -79,7 +78,7 @@ func GcpScan(credFile string, projectFilterStr string) {
 			// if err != nil {
 			//     log.Printf("Error retrieving instance network info for project %s: %v", project.ProjectId, err)
 			// }
-			fmt.Println()
+			verbose.VerbosePrintln()
 		}
 	}
 }
@@ -99,7 +98,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 	// TODO: Figure out pagination
 	instanceList, err := computeService.Instances.AggregatedList(projectID).Do()
 	if err != nil {
-		return fmt.Errorf("failed to list instances: %v", err)
+		return verbose.VerboseErrorf("failed to list instances: %v", err)
 	}
 
 	// Process instances from all zones

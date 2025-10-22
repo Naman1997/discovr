@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"context"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -71,16 +70,16 @@ func NmapScan(targets string, ports string, osDetection bool) {
 			scanner.AddOptions(nmap.WithOSDetection())
 			scanner.AddOptions(nmap.WithPrivileged())
 		} else {
-			log.Fatalf("Scan Failed: OS scan requires elevated privileges!")
+			verbose.VerboseFatalfMsg("Scan Failed: OS scan requires elevated privileges!")
 		}
 	}
 
 	result, warnings, err := scanner.Run()
 	if len(*warnings) > 0 {
-		log.Printf("run finished with warnings: %s\n", *warnings) // Warnings are non-critical errors from nmap.
+		verbose.Printf("run finished with warnings: %s\n", *warnings) // Warnings are non-critical errors from nmap.
 	}
 	if err != nil {
-		log.Fatalf("nmap scan failed: %v", err)
+		verbose.VerboseFatalfMsg("nmap scan failed: %v", err)
 	}
 
 	// TODO: Wait for SRUM-8 and implement the method to export this information to a csv file

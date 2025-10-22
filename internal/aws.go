@@ -2,7 +2,6 @@ package internal
 
 import (
 	"context"
-	"log"
 	"os"
 	"strings"
 
@@ -61,7 +60,7 @@ func AwsScan(regionFilter string, customConfigs []string, customCredentials []st
 	} else {
 		cfg, err = config.LoadDefaultConfig(context.TODO())
 		if err != nil {
-			log.Fatalf("unable to load SDK config, %v", err)
+			verbose.VerboseFatalfMsg("unable to load SDK config, %v", err)
 		}
 	}
 
@@ -69,7 +68,7 @@ func AwsScan(regionFilter string, customConfigs []string, customCredentials []st
 	svc := ec2.NewFromConfig(cfg)
 	result, err := svc.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
 	if err != nil {
-		log.Fatalf("failed to describe regions, %v", err)
+		verbose.VerboseFatalfMsg("failed to describe regions, %v", err)
 	}
 
 	// Loop through each region and describe instance in each one
@@ -91,7 +90,7 @@ func ProcessInstancesForRegion(cfg aws.Config, regionName string) {
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(context.TODO())
 		if err != nil {
-			log.Fatalf("failed to describe instances in region %s, %v", regionName, err)
+			verbose.VerboseFatalfMsg("failed to describe instances in region %s, %v", regionName, err)
 		}
 
 		for _, reservation := range output.Reservations {
@@ -113,7 +112,7 @@ func ProcessInstancesForRegion(cfg aws.Config, regionName string) {
 				for netPaginator.HasMorePages() {
 					netOutput, err := netPaginator.NextPage(context.TODO())
 					if err != nil {
-						log.Fatalf("failed to describe network interfaces in region %s, %v", regionName, err)
+						verbose.VerboseFatalfMsg("failed to describe network interfaces in region %s, %v", regionName, err)
 					}
 
 					// Loop through each network interface and get the network details
