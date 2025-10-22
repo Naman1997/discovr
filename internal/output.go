@@ -1,16 +1,16 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
-    "bytes"
-    "io"
-    "mime/multipart"
-    "net/http"
-    "time"
+	"time"
 )
 
 func ExportCSV[T any](filePath string, data []T) error {
