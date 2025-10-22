@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork"
+	"github.com/Naman1997/discovr/verbose"
 )
 
 var Azure_results []AzureVMResult
@@ -84,23 +84,23 @@ func Azurescan(subIdInput string) {
 	if subIdInput == "default" {
 		subID, err = GetDefaultSubscription()
 		if err != nil {
-			log.Fatal(err)
+			verbose.VerboseFatal(err)
 		}
 	} else {
 		subID = subIdInput
 	}
 
-	fmt.Println("----------------------------------------")
+	verbose.VerbosePrintln("----------------------------------------\n")
 
 	ctx := context.Background()
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 
 	vmClient, err := armcompute.NewVirtualMachinesClient(subID, cred, nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 
 	// raises errors if Invalid SubID or no VMs in Sub
@@ -108,23 +108,23 @@ func Azurescan(subIdInput string) {
 	if testPager.More() {
 		_, err := testPager.NextPage(ctx)
 		if err != nil {
-			log.Fatalf("Subscription ID %v does not Exist: %v", subID, err)
+			verbose.VerboseFatalfMsg("Subscription ID %v does not Exist: %v", subID, err)
 		}
 	} else {
-		log.Fatalf("Subscription %s contains no VMs", subID)
+		verbose.VerboseFatalfMsg("Subscription %s contains no VMs", subID)
 	}
 
 	nicClient, err := armnetwork.NewInterfacesClient(subID, cred, nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 	subnetClient, err := armnetwork.NewSubnetsClient(subID, cred, nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 	pipClient, err := armnetwork.NewPublicIPAddressesClient(subID, cred, nil)
 	if err != nil {
-		log.Fatal(err)
+		verbose.VerboseFatal(err)
 	}
 
 	// VM Client for creating pager and initial info
@@ -146,11 +146,11 @@ func Azurescan(subIdInput string) {
 				var vmInfo AzureVMData
 				nicID, err := arm.ParseResourceID(*nicRef.ID)
 				if err != nil {
-					log.Fatal(err)
+					verbose.VerboseFatal(err)
 				}
 				nic, err := nicClient.Get(ctx, nicID.ResourceGroupName, nicID.Name, nil)
 				if err != nil {
-					log.Fatal(err)
+					verbose.VerboseFatal(err)
 				}
 				if nic.Name != nil {
 					vmInfo.NIC = append(vmInfo.NIC, nicID.Name)
@@ -170,7 +170,7 @@ func Azurescan(subIdInput string) {
 					if ipConf.Properties.Subnet != nil {
 						subnetID, err := arm.ParseResourceID(*ipConf.Properties.Subnet.ID)
 						if err != nil {
-							log.Fatal(err)
+							verbose.VerboseFatal(err)
 						}
 						if subnetID.Parent.Name != "" {
 							vmInfo.Vnet = append(vmInfo.Vnet, subnetID.Parent.Name)
@@ -181,7 +181,7 @@ func Azurescan(subIdInput string) {
 
 						subnetResp, err := subnetClient.Get(ctx, subnetID.ResourceGroupName, subnetID.Parent.Name, subnetID.Name, nil)
 						if err != nil {
-							log.Fatal(err)
+							verbose.VerboseFatal(err)
 						}
 						cidr := "unknown" // default
 						if subnetResp.Properties != nil {
@@ -207,11 +207,11 @@ func Azurescan(subIdInput string) {
 					if ipConf.Properties.PublicIPAddress != nil {
 						pipID, err := arm.ParseResourceID(*ipConf.Properties.PublicIPAddress.ID)
 						if err != nil {
-							log.Fatal(err)
+							verbose.VerboseFatal(err)
 						}
 						pip, err := pipClient.Get(ctx, pipID.ResourceGroupName, pipID.Name, nil)
 						if err != nil {
-							log.Fatal(err)
+							verbose.VerboseFatal(err)
 						}
 						if err == nil && pip.Properties.IPAddress != nil {
 							vmInfo.PublicIP = append(vmInfo.PublicIP, *pip.Properties.IPAddress)
@@ -224,16 +224,16 @@ func Azurescan(subIdInput string) {
 					result.Vnet = strings.Join(vmInfo.Vnet, ", ")
 					result.PublicIP = strings.Join(vmInfo.PublicIP, ", ")
 
-					fmt.Printf("\nName: %s\n", result.Name)
-					fmt.Printf("ID: %s\n", result.UniqueID)
-					fmt.Printf("Location: %s\n", result.Location)
-					fmt.Printf("Resource Group: %s\n", result.ResourceGroup)
-					fmt.Printf("Private IP: %s\n", result.PrivateIP)
-					fmt.Printf("Public IP: %s\n", result.PublicIP)
-					fmt.Printf("MAC Address: %s\n", result.MAC)
-					fmt.Printf("Vnet: %s\n", result.Vnet)
-					fmt.Printf("NIC: %s\n", result.NIC)
-					fmt.Printf("Subnet: %s\n", result.Subnet)
+					verbose.VerbosePrintf("\nName: %s\n", result.Name)
+					verbose.VerbosePrintf("ID: %s\n", result.UniqueID)
+					verbose.VerbosePrintf("Location: %s\n", result.Location)
+					verbose.VerbosePrintf("Resource Group: %s\n", result.ResourceGroup)
+					verbose.VerbosePrintf("Private IP: %s\n", result.PrivateIP)
+					verbose.VerbosePrintf("Public IP: %s\n", result.PublicIP)
+					verbose.VerbosePrintf("MAC Address: %s\n", result.MAC)
+					verbose.VerbosePrintf("Vnet: %s\n", result.Vnet)
+					verbose.VerbosePrintf("NIC: %s\n", result.NIC)
+					verbose.VerbosePrintf("Subnet: %s\n", result.Subnet)
 
 					Azure_results = append(Azure_results, result)
 				}

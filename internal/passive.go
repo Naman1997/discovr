@@ -2,11 +2,11 @@ package internal
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"slices"
 	"time"
 
+	"github.com/Naman1997/discovr/verbose"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
@@ -41,7 +41,7 @@ func PassiveScan(device string, scanSeconds int) {
 
 	err := sem.Acquire(ctx, 2)
 	if err != nil {
-		fmt.Println("")
+		verbose.Printf("")
 		return
 	}
 }
@@ -104,17 +104,17 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 		ip, _ := ipLayer.(*layers.IPv4)
 		if slices.Contains(localIPs, ip.DstIP.String()) && !slices.Contains(discoveredAssets, ip.SrcIP.String()) {
 			discoveredAssets = append(discoveredAssets, ip.SrcIP.String())
-			fmt.Printf("Discovered new asset: %s\n", ip.SrcIP)
-			fmt.Println("Protocol: ", ip.Protocol)
-			fmt.Println()
+			verbose.VerbosePrintf("Discovered new asset: %s\n", ip.SrcIP)
+			verbose.VerbosePrintln("Protocol: ", ip.Protocol)
+			verbose.VerbosePrintln()
 
 			if ethernetLayer != nil {
-				fmt.Println("Ethernet layer detected.")
+				verbose.VerbosePrintln("Ethernet layer detected.\n")
 				ethernetPacket, _ := ethernetLayer.(*layers.Ethernet)
-				fmt.Println("Source MAC: ", ethernetPacket.SrcMAC)
-				fmt.Println("Destination MAC: ", ethernetPacket.DstMAC)
-				fmt.Println("Ethernet type: ", ethernetPacket.EthernetType)
-				fmt.Println()
+				verbose.VerbosePrintln("Source MAC: ", ethernetPacket.SrcMAC)
+				verbose.VerbosePrintln("Destination MAC: ", ethernetPacket.DstMAC)
+				verbose.VerbosePrintln("Ethernet type: ", ethernetPacket.EthernetType)
+				verbose.VerbosePrintln()
 
 				//export SCRUM-94
 				result := ScanResultPassive{
@@ -127,7 +127,7 @@ func printPacketInfo(packet gopacket.Packet, localIPs []string) {
 				Passive_results = append(Passive_results, result)
 
 			}
-			fmt.Println("==========================================================================================")
+			verbose.VerbosePrintln("==========================================================================================")
 		}
 	}
 }
@@ -136,14 +136,14 @@ func getLocalIPs() ([]string, error) {
 	var localIPs []string
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		fmt.Printf("Error getting interfaces: %v\n", err)
+		verbose.Printf("Error getting interfaces: %v\n", err)
 		return localIPs, err
 	}
 
 	for _, i := range ifaces {
 		addrs, err := i.Addrs()
 		if err != nil {
-			fmt.Printf("Error getting addresses for interface %s: %v\nContinuing...\n", i.Name, err)
+			verbose.Printf("Error getting addresses for interface %s: %v\nContinuing...\n", i.Name, err)
 			continue
 		}
 

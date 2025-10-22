@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/Naman1997/discovr/internal"
+	"github.com/Naman1997/discovr/verbose"
 	"github.com/charmbracelet/huh"
 )
 
@@ -26,6 +27,7 @@ var (
 	icmpmode        bool
 	projectfilter   string
 	credPath        string
+	verb            bool
 )
 
 func Runform(form *huh.Form) {
@@ -70,9 +72,13 @@ func RunTui() {
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
 					Value(&exportpath),
+				huh.NewConfirm().
+					Title("Enable Verbose Mode:").
+					Value(&verbose.Verbose),
 			),
 		)
 		Runform(form)
+		VerboseEnabled()
 		internal.DefaultScan(netInterface, tCIDR, icmpmode, concurrency, timeout, count)
 		if !icmpmode {
 			internal.ShowResults(internal.Defaultscan_results)
@@ -123,9 +129,13 @@ func RunTui() {
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
 					Value(&exportpath),
+				huh.NewConfirm().
+					Title("Enable Verbose Mode:").
+					Value(&verbose.Verbose),
 			),
 		)
 		Runform(form)
+		VerboseEnabled()
 		if durationStr == "" {
 			duration = 20
 		} else {
@@ -163,9 +173,13 @@ func RunTui() {
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
 					Value(&exportpath),
+				huh.NewConfirm().
+					Title("Enable Verbose Mode:").
+					Value(&verbose.Verbose),
 			),
 		)
 		Runform(form)
+		VerboseEnabled()
 		if ip == "" {
 			ip = "127.0.0.1"
 		}
@@ -187,9 +201,13 @@ func RunTui() {
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
 					Value(&exportpath),
+				huh.NewConfirm().
+					Title("Enable Verbose Mode:").
+					Value(&verbose.Verbose),
 			),
 		)
 		Runform(form)
+		VerboseEnabled()
 		if subID == "" {
 			subID = "default"
 		}
@@ -220,10 +238,15 @@ func RunTui() {
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
 					Value(&exportpath),
+				huh.NewConfirm().
+					Title("Enable Verbose Mode:").
+					Value(&verbose.Verbose),
 			),
 		)
 		Runform(form)
+		VerboseEnabled()
 		internal.AwsScan(regionselect, []string{}, []string{}, "")
+		internal.ShowResults(internal.Aws_results)
 		internal.ExportCSV(exportpath, internal.Aws_results)
 
 	case "GCP Cloud Scan":
@@ -258,9 +281,13 @@ func RunTui() {
 					Title("Enter an export path:").
 					Placeholder(pathplaceholder).
 					Value(&exportpath),
+				huh.NewConfirm().
+					Title("Enable Verbose Mode:").
+					Value(&verbose.Verbose),
 			),
 		)
 		Runform(form_1)
+		VerboseEnabled()
 		internal.GcpScan(credPath, projectfilter)
 		internal.ShowResults(internal.Gcp_results)
 		internal.ExportCSV(exportpath, internal.Gcp_results)

@@ -3,9 +3,9 @@ package internal
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
+	"github.com/Naman1997/discovr/verbose"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
@@ -35,34 +35,34 @@ func GcpScan(credFile string, projectFilterStr string) {
 	if credFile != "" {
 		resourceManagerClient, err = cloudresourcemanager.NewService(ctx, option.WithCredentialsFile(credFile))
 		if err != nil {
-			log.Fatalf("Failed to create resource manager client: %v", err)
+			verbose.VerboseFatalfMsg("Failed to create resource manager client: %v", err)
 		}
 
 		computeService, err = compute.NewService(ctx, option.WithCredentialsFile(credFile))
 		if err != nil {
-			log.Fatalf("Failed to create compute service: %v", err)
+			verbose.VerboseFatalfMsg("Failed to create compute service: %v", err)
 		}
 	} else {
 		resourceManagerClient, err = cloudresourcemanager.NewService(ctx)
 		if err != nil {
-			log.Fatalf("Failed to create resource manager client: %v", err)
+			verbose.VerboseFatalfMsg("Failed to create resource manager client: %v", err)
 		}
 
 		computeService, err = compute.NewService(ctx)
 		if err != nil {
-			log.Fatalf("Failed to create compute service: %v", err)
+			verbose.VerboseFatalfMsg("Failed to create compute service: %v", err)
 		}
 	}
 
 	// List All Projects
 	projects, err := resourceManagerClient.Projects.List().Do()
 	if err != nil {
-		log.Fatalf("Failed to list projects: %v", err)
+		verbose.VerboseFatalfMsg("Failed to list projects: %v", err)
 	}
 
 	// Process Projects
 	if len(projects.Projects) == 0 {
-		fmt.Println("No projects found.")
+		verbose.VerbosePrintln("No projects found.")
 		return
 	}
 
@@ -71,14 +71,14 @@ func GcpScan(credFile string, projectFilterStr string) {
 
 	for _, project := range projects.Projects {
 		if contains(filteredProjects, project.Name) || projectFilterStr == "" {
-			fmt.Printf("Checking instances for project: %s\n", project.Name)
+			verbose.VerbosePrintf("Checking instances for project: %s\n", project.Name)
 
 			listInstanceNetworkInfo(computeService, project.ProjectId)
 			// TODO: Enable on debug
 			// if err != nil {
 			//     log.Printf("Error retrieving instance network info for project %s: %v", project.ProjectId, err)
 			// }
-			fmt.Println()
+			verbose.VerbosePrintln()
 		}
 	}
 }
@@ -98,7 +98,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 	// TODO: Figure out pagination
 	instanceList, err := computeService.Instances.AggregatedList(projectID).Do()
 	if err != nil {
-		return fmt.Errorf("failed to list instances: %v", err)
+		return verbose.VerboseErrorf("failed to list instances: %v", err)
 	}
 
 	// Process instances from all zones
@@ -113,11 +113,11 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 			for _, networkInterface := range instance.NetworkInterfaces {
 
 				// Print item
-				fmt.Println()
-				fmt.Printf("Project ID: %s\n", projectID)
-				fmt.Printf("Instance ID: %d\n", instance.Id)
-				fmt.Printf("Instance Name: %s\n", instance.Name)
-				fmt.Printf("Hostname: %s\n", instance.Hostname)
+				verbose.VerbosePrintln()
+				verbose.VerbosePrintf("Project ID: %s\n", projectID)
+				verbose.VerbosePrintf("Instance ID: %d\n", instance.Id)
+				verbose.VerbosePrintf("Instance Name: %s\n", instance.Name)
+				verbose.VerbosePrintf("Hostname: %s\n", instance.Hostname)
 
 				// Get OS details
 				var osType string
@@ -128,18 +128,18 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 							parts := strings.Split(disk.Licenses[0], "/")
 							if len(parts) > 0 {
 								osType = parts[len(parts)-1]
-								fmt.Printf("OS: %s\n", osType)
+								verbose.VerbosePrintf("OS: %s\n", osType)
 								break
 							}
 						}
 					}
 				}
 
-				fmt.Printf("Interface Name: %s\n", networkInterface.Name)
+				verbose.VerbosePrintf("Interface Name: %s\n", networkInterface.Name)
 
 				// Internal IP
 				if networkInterface.NetworkIP != "" {
-					fmt.Printf("Internal IP: %s\n", networkInterface.NetworkIP)
+					verbose.VerbosePrintf("Internal IP: %s\n", networkInterface.NetworkIP)
 				}
 
 				// Collect all NatIP values (these are external Ips)
@@ -150,7 +150,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 				}
 				if len(natIPs) > 0 {
 					natIPString = fmt.Sprintf("[%s]", strings.Join(natIPs, ","))
-					fmt.Printf("External IPs: %s\n", natIPString)
+					verbose.VerbosePrintf("External IPs: %s\n", natIPString)
 				}
 
 				// VPC
@@ -159,7 +159,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 					networkParts := strings.Split(networkInterface.Network, "/")
 					if len(networkParts) > 0 {
 						vpcID = networkParts[len(networkParts)-1]
-						fmt.Printf("VPC: %s\n", vpcID)
+						verbose.VerbosePrintf("VPC: %s\n", vpcID)
 					}
 				}
 
@@ -169,7 +169,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 					subnetParts := strings.Split(networkInterface.Subnetwork, "/")
 					if len(subnetParts) > 0 {
 						subnetID = subnetParts[len(subnetParts)-1]
-						fmt.Printf("Subnet: %s\n", subnetID)
+						verbose.VerbosePrintf("Subnet: %s\n", subnetID)
 					}
 				}
 

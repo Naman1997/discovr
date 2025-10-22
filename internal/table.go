@@ -2,8 +2,10 @@ package internal
 
 import (
 	"fmt"
+	"os"
 	"reflect"
-	"strings"
+
+	"golang.org/x/term"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,7 +17,7 @@ var baseStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("#975b85ff"))
 
-// -------------------- Table Model --------------------
+// Table Model
 type tableModel struct {
 	table table.Model
 	data  interface{}
@@ -24,12 +26,12 @@ type tableModel struct {
 
 // Create a new table model from any struct slice
 func NewTableModel(data interface{}, width int) *tableModel {
-	columns, rows := BuildDynamicTableWithWrap(data, width)
+	columns, rows := BuildTable(data, width)
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithHeight(len(rows)+3),
-		table.WithFocused(true),
+		table.WithFocused(false),
 	)
 
 	// Styling
@@ -38,18 +40,19 @@ func NewTableModel(data interface{}, width int) *tableModel {
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("#6e6f6eff")).
 		BorderBottom(true).
+		Align(lipgloss.Center).
 		Bold(true)
 	s.Selected = s.Selected.
-		BorderForeground(lipgloss.Color("#6e6f6eff")).
-		Foreground(lipgloss.Color("#ffffff")).
-		Background(lipgloss.Color("#49306d")).
+		BorderForeground(lipgloss.Color("")).
+		Foreground(lipgloss.Color("")).
+		Background(lipgloss.Color("")).
 		Bold(false)
 	t.SetStyles(s)
 
 	return &tableModel{table: t, data: data, width: width}
 }
 
-// -------------------- Bubble Tea Methods --------------------
+// Bubble Tea Methods
 func (m *tableModel) Init() tea.Cmd {
 	return nil
 }
@@ -60,7 +63,7 @@ func (m *tableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		columns, rows := BuildDynamicTableWithWrap(m.data, m.width)
+		columns, rows := BuildTable(m.data, m.width)
 		m.table.SetColumns(columns)
 		m.table.SetRows(rows)
 
@@ -85,7 +88,7 @@ func (m *tableModel) View() string {
 	return baseStyle.Render(m.table.View()) + "\n"
 }
 
-// -------------------- Text Wrapping --------------------
+// Text Wrapping
 func WrapText(text string, maxWidth int) []string {
 	if len(text) <= maxWidth {
 		return []string{text}
@@ -103,7 +106,7 @@ func WrapText(text string, maxWidth int) []string {
 	return lines
 }
 
-// -------------------- Dynamic Width Compute --------------------
+// Width Calculation
 func ComputeColumnWidths(data interface{}, maxTotalWidth int) []int {
 	v := reflect.ValueOf(data)
 	if v.Len() == 0 {
@@ -114,46 +117,24 @@ func ComputeColumnWidths(data interface{}, maxTotalWidth int) []int {
 	numCols := elemType.NumField()
 	widths := make([]int, numCols)
 
-	// First, take header widths
+	// Small value for separator/padding between columns
+	const divider = 1
+
+	// Compute equal widths
+	baseWidth := (maxTotalWidth / numCols) - divider
+	if baseWidth < 1 { // enforce minimum width
+		baseWidth = 1
+	}
+
 	for i := 0; i < numCols; i++ {
-		widths[i] = len(elemType.Field(i).Name)
+		widths[i] = baseWidth
 	}
 
-	// Then, scan data to find max content width for each column
-	for i := 0; i < v.Len(); i++ {
-		elem := v.Index(i)
-		for j := 0; j < numCols; j++ {
-			fieldVal := fmt.Sprintf("%v", elem.Field(j).Interface())
-			lines := strings.Split(fieldVal, "\n")
-			for _, line := range lines {
-				if len(line) > widths[j] {
-					widths[j] = len(line)
-				}
-			}
-		}
-	}
-
-	// Compute total natural width
-	totalWidth := numCols - 1 // for column separators
-	for _, w := range widths {
-		totalWidth += w
-	}
-
-	// If too wide, split equally among columns
-	if totalWidth > maxTotalWidth {
-		equal := (maxTotalWidth - (numCols - 1)) / numCols
-		if equal < 3 {
-			equal = 3 // enforce minimum
-		}
-		for i := range widths {
-			widths[i] = equal
-		}
-	}
 	return widths
 }
 
-// -------------------- Dynamic Table Builder --------------------
-func BuildDynamicTableWithWrap(data interface{}, maxWidth int) ([]table.Column, []table.Row) {
+// Dynamic Table Builder
+func BuildTable(data interface{}, maxWidth int) ([]table.Column, []table.Row) {
 	v := reflect.ValueOf(data)
 	if v.Len() == 0 {
 		return nil, nil
@@ -163,16 +144,21 @@ func BuildDynamicTableWithWrap(data interface{}, maxWidth int) ([]table.Column, 
 	numCols := elemType.NumField()
 	colWidths := ComputeColumnWidths(data, maxWidth)
 
-	// Columns
+	centerStyle := lipgloss.NewStyle().Align(lipgloss.Center)
+
+	// Headers
 	columns := []table.Column{}
 	for i := 0; i < numCols; i++ {
+		title := elemType.Field(i).Name
+		centeredTitle := centerStyle.Width(colWidths[i]).Render(title)
+
 		columns = append(columns, table.Column{
-			Title: elemType.Field(i).Name,
+			Title: centeredTitle,
 			Width: colWidths[i],
 		})
 	}
 
-	// Rows with wrapping
+	// Rows
 	rows := []table.Row{}
 	for i := 0; i < v.Len(); i++ {
 		elem := v.Index(i)
@@ -191,20 +177,33 @@ func BuildDynamicTableWithWrap(data interface{}, maxWidth int) ([]table.Column, 
 		for line := 0; line < maxLines; line++ {
 			row := table.Row{}
 			for j := 0; j < numCols; j++ {
+				var cell string
 				if line < len(wrappedCols[j]) {
-					row = append(row, wrappedCols[j][line])
+					cell = centerStyle.Width(colWidths[j]).Render(wrappedCols[j][line])
 				} else {
-					row = append(row, "")
+					cell = centerStyle.Width(colWidths[j]).Render("")
 				}
+				row = append(row, cell)
 			}
 			rows = append(rows, row)
 		}
 	}
+
 	return columns, rows
 }
 
-// -------------------- ShowResults Functions --------------------
+// Result Display Function
 func ShowResults[T any](data []T) {
-	m := NewTableModel(data, 110)
+	m := NewTableModel(data, GetMaxWidth())
 	fmt.Println(m.View())
+}
+
+func GetMaxWidth() int {
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		fmt.Printf("Error getting terminal size: %v\n", err)
+		fmt.Println("Warning: Setting max width to 120")
+		return 120
+	}
+	return width - 10
 }
