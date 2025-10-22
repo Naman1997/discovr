@@ -20,6 +20,7 @@ var gcpCmd = &cobra.Command{
 		internal.GcpScan(CredFile, ProjectFilterStr)
 		internal.ShowResults(internal.Gcp_results)
 		internal.ExportCSV(GcpCsvExportPath, internal.Gcp_results)
+		internal.UploadResults(UploadUrl, GcpCsvExportPath, internal.Gcp_results, "gcp_")
 	},
 }
 

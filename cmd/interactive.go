@@ -75,6 +75,9 @@ func RunTui() {
 				huh.NewConfirm().
 					Title("Enable Verbose Mode:").
 					Value(&verbose.Verbose),
+				huh.NewInput().
+					Title("Enter the upload URL:").
+					Value(&UploadUrl),
 			),
 		)
 		Runform(form)
@@ -83,9 +86,11 @@ func RunTui() {
 		if !icmpmode {
 			internal.ShowResults(internal.Defaultscan_results)
 			internal.ExportCSV(exportpath, internal.Defaultscan_results)
+			internal.UploadResults(UploadUrl, exportpath, internal.Defaultscan_results, "active_")
 		} else {
 			internal.ShowResults(internal.Icmpscan_results)
 			internal.ExportCSV(exportpath, internal.Icmpscan_results)
+			internal.UploadResults(UploadUrl, exportpath, internal.Defaultscan_results, "active_")
 		}
 
 	case "Passive Scan":
@@ -132,6 +137,9 @@ func RunTui() {
 				huh.NewConfirm().
 					Title("Enable Verbose Mode:").
 					Value(&verbose.Verbose),
+				huh.NewInput().
+					Title("Enter the upload URL:").
+					Value(&UploadUrl),
 			),
 		)
 		Runform(form)
@@ -144,6 +152,7 @@ func RunTui() {
 		internal.PassiveScan(selectinterface, duration)
 		internal.ShowResults(internal.Passive_results)
 		internal.ExportCSV(exportpath, internal.Passive_results)
+		internal.UploadResults(UploadUrl, exportpath, internal.Passive_results, "passive_")
 
 	case "Nmap Scan":
 		pathplaceholder := GetOsPathPlaceholder()
@@ -176,6 +185,9 @@ func RunTui() {
 				huh.NewConfirm().
 					Title("Enable Verbose Mode:").
 					Value(&verbose.Verbose),
+				huh.NewInput().
+					Title("Enter the upload URL:").
+					Value(&UploadUrl),
 			),
 		)
 		Runform(form)
@@ -186,6 +198,7 @@ func RunTui() {
 		internal.NmapScan(ip, ports, osdet)
 		internal.ShowResults(internal.Active_results)
 		internal.ExportCSV(exportpath, internal.Active_results)
+		internal.UploadResults(UploadUrl, exportpath, internal.Active_results, "nmap_")
 
 	case "Azure Cloud Scan":
 		pathplaceholder := GetOsPathPlaceholder()
@@ -204,6 +217,9 @@ func RunTui() {
 				huh.NewConfirm().
 					Title("Enable Verbose Mode:").
 					Value(&verbose.Verbose),
+				huh.NewInput().
+					Title("Enter the upload URL:").
+					Value(&UploadUrl),
 			),
 		)
 		Runform(form)
@@ -214,6 +230,7 @@ func RunTui() {
 		internal.Azurescan(subID)
 		internal.ShowResults(internal.Azure_results)
 		internal.ExportCSV(exportpath, internal.Azure_results)
+		internal.UploadResults(UploadUrl, exportpath, internal.Azure_results, "azure_")
 
 	case "AWS Cloud Scan":
 		var regionOptions []huh.Option[string]
@@ -241,6 +258,9 @@ func RunTui() {
 				huh.NewConfirm().
 					Title("Enable Verbose Mode:").
 					Value(&verbose.Verbose),
+				huh.NewInput().
+					Title("Enter the upload URL:").
+					Value(&UploadUrl),
 			),
 		)
 		Runform(form)
@@ -248,6 +268,7 @@ func RunTui() {
 		internal.AwsScan(regionselect, []string{}, []string{}, "")
 		internal.ShowResults(internal.Aws_results)
 		internal.ExportCSV(exportpath, internal.Aws_results)
+		internal.UploadResults(UploadUrl, exportpath, internal.Aws_results, "aws_")
 
 	case "GCP Cloud Scan":
 		var projectOptions []huh.Option[string]
@@ -284,6 +305,9 @@ func RunTui() {
 				huh.NewConfirm().
 					Title("Enable Verbose Mode:").
 					Value(&verbose.Verbose),
+				huh.NewInput().
+					Title("Enter the upload URL:").
+					Value(&UploadUrl),
 			),
 		)
 		Runform(form_1)
@@ -291,5 +315,6 @@ func RunTui() {
 		internal.GcpScan(credPath, projectfilter)
 		internal.ShowResults(internal.Gcp_results)
 		internal.ExportCSV(exportpath, internal.Gcp_results)
+		internal.UploadResults(UploadUrl, exportpath, internal.Gcp_results, "gcp_")
 	}
 }

@@ -22,6 +22,7 @@ discovr azure --config FILENAME
 		internal.Azurescan(SubscriptionID)
 		internal.ShowResults(internal.Azure_results)
 		internal.ExportCSV(AzureCsvExportPath, internal.Azure_results)
+		internal.UploadResults(UploadUrl, AzureCsvExportPath, internal.Azure_results, "azure_")
 	},
 }
 

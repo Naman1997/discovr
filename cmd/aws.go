@@ -24,6 +24,7 @@ var awsCmd = &cobra.Command{
 		internal.AwsScan(Region, Config, Credential, Profile)
 		internal.ShowResults(internal.Aws_results)
 		internal.ExportCSV(AwsCsvExportPath, internal.Aws_results)
+		internal.UploadResults(UploadUrl, AwsCsvExportPath, internal.Aws_results, "aws_")
 	},
 }
 

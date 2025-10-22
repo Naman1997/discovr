@@ -19,7 +19,7 @@ var passiveCmd = &cobra.Command{
 		internal.PassiveScan(Interface, ScanTime)
 		internal.ShowResults(internal.Passive_results)
 		internal.ExportCSV(PathPassive, internal.Passive_results)
-
+		internal.UploadResults(UploadUrl, PathPassive, internal.Passive_results, "passive_")
 	},
 }
 

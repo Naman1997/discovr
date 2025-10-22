@@ -1,11 +1,16 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
+	"time"
 )
 
 func ExportCSV[T any](filePath string, data []T) error {
@@ -64,4 +69,63 @@ func ExportCSV[T any](filePath string, data []T) error {
 
 	fmt.Printf("Saved to: %v\n", filePath)
 	return nil
+}
+
+func UploadResults[T any](url string, filePath string, data []T, filePrefix string) {
+	if url == "" {
+		return
+	}
+	_, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		// If file doesn't exist, create it in the temp directory
+		tempFilePath := filepath.Join(os.TempDir(), filePrefix+time.Now().Format("20060102_150405")+".csv")
+		err := ExportCSV(tempFilePath, data)
+		if err != nil {
+			panic(err)
+		}
+
+		filePath = tempFilePath
+		defer os.Remove(filePath)
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	fw, err := w.CreateFormFile("file", filepath.Base(filePath))
+	if err != nil {
+		panic(err)
+	}
+
+	// Copy file content to form field
+	if _, err = io.Copy(fw, file); err != nil {
+		panic(err)
+	}
+	w.Close()
+
+	// Create the request
+	req, err := http.NewRequest("POST", url, &b)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(string(body))
 }
