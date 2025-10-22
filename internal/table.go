@@ -191,6 +191,6 @@ func BuildTable(data interface{}, maxWidth int) ([]table.Column, []table.Row) {
 
 // Result Display Function
 func ShowResults[T any](data []T) {
-	m := NewTableModel(data, 140)
+	m := NewTableModel(data, 120)
 	fmt.Println(m.View())
 }
