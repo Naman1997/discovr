@@ -30,7 +30,7 @@ var activeCmd = &cobra.Command{
 		} else {
 			internal.ShowResults(internal.Icmpscan_results)
 			internal.ExportCSV(ExportPathActive, internal.Icmpscan_results)
-			internal.UploadResults(UploadUrl, ExportPathActive, internal.Defaultscan_results, "active_")
+			internal.UploadResults(UploadUrl, ExportPathActive, internal.Icmpscan_results, "active_")
 		}
 	},
 }

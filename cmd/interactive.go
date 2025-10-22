@@ -90,7 +90,7 @@ func RunTui() {
 		} else {
 			internal.ShowResults(internal.Icmpscan_results)
 			internal.ExportCSV(exportpath, internal.Icmpscan_results)
-			internal.UploadResults(UploadUrl, exportpath, internal.Defaultscan_results, "active_")
+			internal.UploadResults(UploadUrl, exportpath, internal.Icmpscan_results, "active_")
 		}
 
 	case "Passive Scan":
