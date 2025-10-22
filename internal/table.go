@@ -3,6 +3,8 @@ package internal
 import (
 	"fmt"
 	"reflect"
+	"golang.org/x/term"
+	"os"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -191,6 +193,16 @@ func BuildTable(data interface{}, maxWidth int) ([]table.Column, []table.Row) {
 
 // Result Display Function
 func ShowResults[T any](data []T) {
-	m := NewTableModel(data, 120)
+	m := NewTableModel(data, GetMaxWidth())
 	fmt.Println(m.View())
+}
+
+func GetMaxWidth() int {
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		fmt.Printf("Error getting terminal size: %v\n", err)
+		fmt.Println("Warning: Setting max width to 120")
+		return 120
+	}
+	return width - 10
 }

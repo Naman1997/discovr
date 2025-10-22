@@ -72,7 +72,7 @@ func GcpScan(credFile string, projectFilterStr string) {
 
 	for _, project := range projects.Projects {
 		if contains(filteredProjects, project.Name) || projectFilterStr == "" {
-			fmt.Printf("Checking instances for project: %s\n", project.Name)
+			verbose.VerbosePrintf("Checking instances for project: %s\n", project.Name)
 
 			listInstanceNetworkInfo(computeService, project.ProjectId)
 			// TODO: Enable on debug
@@ -129,7 +129,7 @@ func listInstanceNetworkInfo(computeService *compute.Service, projectID string) 
 							parts := strings.Split(disk.Licenses[0], "/")
 							if len(parts) > 0 {
 								osType = parts[len(parts)-1]
-								fmt.Printf("OS: %s\n", osType)
+								verbose.VerbosePrintf("OS: %s\n", osType)
 								break
 							}
 						}
