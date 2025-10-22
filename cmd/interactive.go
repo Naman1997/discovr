@@ -246,6 +246,7 @@ func RunTui() {
 		Runform(form)
 		VerboseEnabled()
 		internal.AwsScan(regionselect, []string{}, []string{}, "")
+		internal.ShowResults(internal.Aws_results)
 		internal.ExportCSV(exportpath, internal.Aws_results)
 
 	case "GCP Cloud Scan":
