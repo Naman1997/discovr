@@ -204,5 +204,5 @@ func GetMaxWidth() int {
 		fmt.Println("Warning: Setting max width to 120")
 		return 120
 	}
-	return width - 10
+	return width - 9
 }
