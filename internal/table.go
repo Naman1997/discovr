@@ -2,9 +2,9 @@ package internal
 
 import (
 	"fmt"
-	"reflect"
 	"golang.org/x/term"
 	"os"
+	"reflect"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
