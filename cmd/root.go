@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var UploadUrl string
 var rootCmd = &cobra.Command{
 	Use:   "discovr",
 	Short: "Portable asset discovery tool for mapping your networks",
@@ -19,6 +20,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose.Verbose, "verbose", "v", false, "Enable verbose")
+	rootCmd.PersistentFlags().StringVarP(&UploadUrl, "url", "u", "", "Upload results to URL endpoint")
 }
 
 func Execute() {

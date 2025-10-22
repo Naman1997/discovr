@@ -20,6 +20,7 @@ var nmapCmd = &cobra.Command{
 		internal.NmapScan(Target, Ports, OsDetection)
 		internal.ShowResults(internal.Active_results)
 		internal.ExportCSV(PathActive, internal.Active_results)
+		internal.UploadResults(UploadUrl, PathActive, internal.Active_results, "nmap_")
 	},
 }
 

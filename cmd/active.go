@@ -26,9 +26,11 @@ var activeCmd = &cobra.Command{
 		if !ICMPMode {
 			internal.ShowResults(internal.Defaultscan_results)
 			internal.ExportCSV(ExportPathActive, internal.Defaultscan_results)
+			internal.UploadResults(UploadUrl, ExportPathActive, internal.Defaultscan_results, "active_")
 		} else {
 			internal.ShowResults(internal.Icmpscan_results)
 			internal.ExportCSV(ExportPathActive, internal.Icmpscan_results)
+			internal.UploadResults(UploadUrl, ExportPathActive, internal.Defaultscan_results, "active_")
 		}
 	},
 }
