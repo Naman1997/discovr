@@ -2,10 +2,17 @@
 FROM alpine:latest
 
 # Install necessary runtime dependencies and file command
-RUN apk add --no-cache ca-certificates libc6-compat file
+RUN apk add --no-cache ca-certificates libc6-compat file sudo libpcap-dev
 
-# Create a non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Create a root user
+ARG NEW_USER=appuser
+
+# Create the new user
+RUN adduser -D -s /bin/sh ${NEW_USER}
+
+# Grant sudo privileges without password
+RUN echo "${NEW_USER} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/${NEW_USER} \
+    && chmod 0440 /etc/sudoers.d/${NEW_USER}
 
 # Set the working directory
 WORKDIR /app
@@ -15,7 +22,7 @@ COPY discovr /app/discovr
 
 # Set permissions and ownership
 RUN chmod +x /app/discovr && \
-    chown appuser:appgroup /app/discovr
+    chown appuser:appuser /app/discovr
 
 # Debugging step: verify binary
 RUN ls -l /app/discovr && \
@@ -25,5 +32,5 @@ RUN ls -l /app/discovr && \
 USER appuser
 
 # Use a shell entrypoint to support argument passing
-ENTRYPOINT ["/app/discovr"]
+ENTRYPOINT ["sudo", "/app/discovr"]
 
