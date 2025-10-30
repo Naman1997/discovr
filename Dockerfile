@@ -4,7 +4,7 @@ FROM alpine:latest
 # Install necessary runtime dependencies and file command
 RUN apk add --no-cache ca-certificates libc6-compat file sudo libpcap-dev
 
-# Create a root user
+# Create a root user (needed for packet capture on host networks that are not present at image build-time)
 ARG NEW_USER=appuser
 
 # Create the new user
@@ -24,12 +24,10 @@ COPY discovr /app/discovr
 RUN chmod +x /app/discovr && \
     chown appuser:appuser /app/discovr
 
-# Debugging step: verify binary
-RUN ls -l /app/discovr && \
-    file /app/discovr
-
-# Switch to non-root user
+# Switch to user
 USER appuser
+
+WORKDIR /exports
 
 # Use a shell entrypoint to support argument passing
 ENTRYPOINT ["sudo", "/app/discovr"]
