@@ -15,7 +15,7 @@ import (
 // Base style for table borders
 var baseStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("#975b85ff"))
+	BorderForeground(lipgloss.Color("#ffffffff"))
 
 // Table Model
 type tableModel struct {
