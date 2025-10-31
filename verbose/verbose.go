@@ -10,7 +10,7 @@ var Verbose bool
 
 func VerbosePrintln(a ...interface{}) {
 	if Verbose {
-		fmt.Println(a...)
+		log.Println(a...)
 	}
 }
 
