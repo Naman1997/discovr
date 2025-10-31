@@ -201,7 +201,6 @@ func ShowResults[T any](data []T) {
 func GetMaxWidth() int {
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
-		fmt.Printf("Error getting terminal size: %v\n", err)
 		fmt.Println("Warning: Setting max width to 120")
 		return 120
 	}

@@ -8,7 +8,7 @@ RUN apk add --no-cache ca-certificates libc6-compat file sudo libpcap-dev
 ARG NEW_USER=appuser
 
 # Create the new user
-RUN adduser -D -s /bin/sh ${NEW_USER}
+RUN adduser -D -h /home/${NEWUSER} -s /bin/sh ${NEW_USER}
 
 # Grant sudo privileges without password
 RUN echo "${NEW_USER} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/${NEW_USER} \
